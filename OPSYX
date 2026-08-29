@@ -1,14 +1,12 @@
-local Players = game:GetService("Players")
+local ALLOWED_GAME_ID = 107778070777162
 
--- Replace this number with your actual Roblox Game ID
-local targetGameId = 107778070777162 
+if game.PlaceId ~= ALLOWED_GAME_ID then
+    game:GetService("Players").LocalPlayer:Kick("You have been banned 1M years reason mamayotay.")
+    return
+end
 
-Players.PlayerAdded:Connect(function(player)
-    -- Check if this specific game ID is true/active
-    if game.PlaceId == targetGameId then
-        player:Kick("You have ben banned 1M Years Reason namayot.")
-    end
-end)
+-- Your script starts here
+
 -- ============================================================
 --  SUITE V9.37-LOWEND - OPSYX  (sUNC 100% / UNC 98-99% HARDENED)
 -- ============================================================
