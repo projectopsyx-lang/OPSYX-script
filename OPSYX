@@ -1,6 +1,6 @@
 local ALLOWED_GAME_ID = 107778070777162
 
 if game.PlaceId ~= ALLOWED_GAME_ID then
-    game:GetService("Players").LocalPlayer:Kick("You have been banned 1M Years Reason Mamayotay.")
+    game:GetService("Players").LocalPlayer:Kick("LoL.")
     return
 end
