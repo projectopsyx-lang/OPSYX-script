@@ -1,1 +1,3141 @@
+local Players = game:GetService("Players")
 
+-- Replace this number with your actual Roblox Game ID
+local targetGameId = 107778070777162 
+
+Players.PlayerAdded:Connect(function(player)
+    -- Check if this specific game ID is true/active
+    if game.PlaceId == targetGameId then
+        player:Kick("You have ben banned 1M Years Reason namayot.")
+    end
+end)
+-- ============================================================
+--  SUITE V9.37-LOWEND - OPSYX  (sUNC 100% / UNC 98-99% HARDENED)
+-- ============================================================
+--  All fixes from V9.31 through V9.36 are fully retained.
+--  V9.37-LOWEND adds low-end CPU/memory optimizations on top of V9.36-COMPAT.
+--
+--  V9.36-COMPAT additional cross-executor hardening:
+--  [COMPAT-1]  math.pow() -> ^ operator (removed/deprecated in modern Luau;
+--              affects Madium V2, Synapse X, Script-Ware, Krnl, Fluxus)
+--  [COMPAT-2]  clearLOSCForChar(): two-pass pairs-safe deletion
+--              (Madium V2 and Fluxus pairs() instability on current-key nil)
+--  [COMPAT-3]  los(): RAY_FILTER[1] falls back to WS when ME.Character==nil
+--              (all executors during respawn; stricter on Madium V2/SynX)
+--  [COMPAT-4]  isEnemy(): TeamColor reads pcall-guarded (Madium V2, SynX,
+--              Script-Ware anti-cheat property hook protection)
+--  [COMPAT-5]  _G.__V94OPSYX_CL(): CHAR_CONNS/LP/CHARS two-pass cleanup
+--              (Madium V2, Fluxus pairs() safety)
+--  [COMPAT-6]  WaitForChild("PlayerGui") given 10s timeout in cg() and
+--              mobile UI block (Madium V2 early injection, Krnl, Fluxus)
+--  [COMPAT-7]  UI:GetFocusedTextBox() pcall-guarded in InputBegan handler
+--              (Synapse X legacy, Krnl older builds, Fluxus)
+--  [COMPAT-8]  GetAttribute() pcall-guarded in scroll button handlers
+--              (Synapse X legacy targets, Krnl older builds)
+--  [COMPAT-9]  RNG seed computation overflow-safe for 32-bit Luau builds
+--              (Krnl 32-bit, Fluxus 32-bit, older Madium V2)
+--  [COMPAT-10] Drawing probe calls removed; type() guard is sufficient
+--              (Madium V2 lazy Drawing init, Fluxus)
+--  [COMPAT-11] Dead code flushAimCache() removed
+--  [COMPAT-12] SetAttribute() calls pcall-guarded in refreshIgnorePanel
+--              (same older-client guard as GetAttribute)
+--  [FIX-UI-DRAG] Main / Ignore List / Settings / Mobile panels now support
+--              mouse + touch dragging with viewport clamping; responsive
+--              layout no longer snaps a manually moved panel back.
+--  No webhook. No data collection. No outbound networking.
+--  [PERF-1] Responsive layout is state/viewport-gated instead of rewriting
+--           panel positions every RenderStepped on stable frames.
+--  [PERF-2] FOV slider consumes InputObject positions instead of polling the
+--           global mouse position every RenderStepped while dragging.
+--  [COMPAT-13] RaycastParams prefers ExcludeInstances with legacy fallback.
+--  [COMPAT-14] Mouse-helper capability now respects UI.MouseEnabled.
+--
+--  V9.37-LOWEND optimizations (low-end PC / low-power CPU focus):
+--  [PERF-3] forceWallCheck() removed from per-frame RenderStepped; moved to
+--           startup and ME.CharacterAdded. Was a no-op write every frame.
+--  [PERF-4] fr() (root-part finder) now uses PART_CACHE_ROOT as primary
+--           lookup, eliminating repeated FindFirstChild iterations in hot paths.
+--  [PERF-5] HUM_CACHE added: al() and ESP Humanoid lookups now cached per
+--           character, replacing FindFirstChildOfClass on every scan frame.
+--           Cache invalidated on character change, respawn, and removal.
+--  [PERF-6] FC.NumSides write removed from per-tick FOV update (was
+--           unconditionally writing 64 every tick; set once at init instead).
+--           HP color recomputed only when HP ratio changes (1% granularity),
+--           eliminating per-tick Color3 allocations when HP is stable.
+--  [PERF-7] All panel/slider UI.InputChanged connections consolidated into
+--           one shared handler (ACTIVE_DRAG). Previously 5 separate listeners
+--           all fired on every mouse-move event. Single dispatcher cuts that
+--           to one nil-check per mouse-move when no drag is active.
+--  [PERF-8] refreshIgnorePanel force-rebuilds debounced at 50 ms minimum.
+--           Prevents burst Instance alloc/destroy on rapid typing or scrolling.
+--  [PERF-9] LOSC (wall-check result cache) periodic stale-entry sweep added.
+--           Entries older than 5s pruned every 10s to bound table growth on
+--           long sessions / high-player servers.
+-- ============================================================
+
+-- ============================================================
+-- RE-EXECUTION GUARD
+-- If OPSYX is already running, unload the previous instance first
+-- so the new execution starts cleanly without duplicate UI/connections.
+-- ============================================================
+if _G.__V94OPSYX_LD then
+    local oldCleanup = _G.__V94OPSYX_CL
+    if type(oldCleanup) == "function" then
+        pcall(oldCleanup)
+    end
+    -- Give disconnected events/UI destruction a scheduler turn to settle.
+    pcall(function()
+        if task and task.wait then task.wait() end
+    end)
+end
+_G.__V94OPSYX_LD = true
+
+-- ============================================================
+-- SERVICES
+-- ============================================================
+local Players = game:GetService("Players")
+local RS      = game:GetService("RunService")
+local UI      = game:GetService("UserInputService")
+local TS      = game:GetService("TweenService")
+local WS      = game:GetService("Workspace")
+local CG      = game:GetService("CoreGui")
+
+local ME = Players.LocalPlayer
+if not ME then ME = Players.PlayerAdded:Wait() end
+
+local function CAM()
+    local c = WS.CurrentCamera
+    if not c then c = WS:FindFirstChildOfClass("Camera") end
+    return c
+end
+
+local MOB = UI.TouchEnabled
+
+-- ============================================================
+-- TASK FALLBACK
+-- ============================================================
+local tw, tsp, tdf
+pcall(function()
+    local tk = task
+    if type(tk) == "table" then
+        if type(tk.wait)  == "function" then tw  = tk.wait  end
+        if type(tk.spawn) == "function" then tsp = tk.spawn end
+        if type(tk.defer) == "function" then tdf = tk.defer end
+    end
+end)
+tw  = tw  or (type(wait)  == "function" and wait  or function() end)
+tsp = tsp or (type(spawn) == "function" and spawn or function(f) f() end)
+tdf = tdf or tsp
+
+-- ============================================================
+-- RNG
+-- [COMPAT-9] Seed computation kept in safe integer range for 32-bit Luau.
+-- math.floor(os.clock()*1000) and math.floor(tick()*100) stay well within
+-- float-safe integer precision on all executor builds, including 32-bit
+-- Krnl, Fluxus, and older Madium V2. +1 guarantees a nonzero seed.
+-- ============================================================
+local RNG = Random.new(
+    (math.abs(math.floor(os.clock() * 1000) + math.floor(tick() * 100)) % 2147483646) + 1
+)
+local NAME_RNG = Random.new(
+    (math.abs(math.floor(os.clock() * 997 + 1) + math.floor(tick() * 317 + 1)) % 2147483646) + 1
+)
+
+-- ============================================================
+-- FPS UNLOCK / PERFORMANCE NOTE
+-- ============================================================
+local FPS_TARGET = 0
+local function applyFPSUnlock()
+    pcall(function() if type(setfpscap)  == "function" then setfpscap(FPS_TARGET) end end)
+    pcall(function() if type(fps_unlock) == "function" then fps_unlock(FPS_TARGET == 0 and 9999 or FPS_TARGET) end end)
+    pcall(function()
+        if syn and type(syn.fps_unlock) == "function" then
+            syn.fps_unlock(FPS_TARGET == 0 and 9999 or FPS_TARGET)
+        end
+    end)
+    pcall(function()
+        if Drawing and type(Drawing.setfpscap) == "function" then
+            Drawing.setfpscap(FPS_TARGET)
+        end
+    end)
+end
+applyFPSUnlock()
+local function reapplyFPS() tw(0.5); applyFPSUnlock() end
+
+-- ============================================================
+-- FPS COUNTER + RATE GATES
+-- ============================================================
+local FPS_COUNT    = 0
+local FPS_SHOWN    = 0
+local FPS_TIMER    = os.clock()
+local FPS_INTERVAL = 0.5
+local LAST_SCALE   = 0
+
+local SA_INTERVAL = 0.033
+local SA_LAST     = 0
+
+-- ============================================================
+-- CAPABILITIES
+-- ============================================================
+local CAP = {d=false, mr=false, ma=false, c1=false, cp=false, cr=false, ia=false}
+pcall(function() CAP.d  = type(Drawing)       == "table"    end)
+pcall(function() CAP.mr = type(mousemoverel)  == "function" end)
+pcall(function() CAP.ma = type(mousemoveabs)  == "function" end)
+pcall(function() CAP.c1 = type(mouse1click)   == "function" end)
+pcall(function() CAP.cp = type(mouse1press)   == "function" end)
+pcall(function() CAP.cr = type(mouse1release) == "function" end)
+pcall(function() CAP.ia = type(isrbxactive)   == "function" end)
+
+local function haveMouse()
+    -- Executor mouse helpers are capabilities, not proof that the current
+    -- Roblox client actually has a mouse. Touch-only devices should retain
+    -- the existing center-screen fallback even if helper functions exist.
+    local mouseEnabled = true
+    pcall(function() mouseEnabled = UI.MouseEnabled end)
+    if not mouseEnabled then return false end
+    if not (CAP.mr or CAP.ma) then return false end
+    if CAP.ia then
+        local ok, act = pcall(isrbxactive)
+        return ok and act
+    end
+    return true
+end
+
+-- ============================================================
+-- HELPERS
+-- ============================================================
+local function cl(v, lo, hi) return v < lo and lo or (v > hi and hi or v) end
+local function sg(x)         return x > 0 and 1 or (x < 0 and -1 or 0)  end
+
+local function rs(l)
+    local t = {}
+    for i = 1, l or 16 do
+        t[i] = string.char(NAME_RNG:NextInteger(97, 122))
+    end
+    return table.concat(t)
+end
+
+local function rn(l)
+    local pool = "abcdefghijklmnopqrstuvwxyz0123456789"
+    local p = #pool; local t = {}
+    for i = 1, l or 8 do
+        local c = NAME_RNG:NextInteger(1, p); t[i] = pool:sub(c,c)
+    end
+    return table.concat(t)
+end
+
+local function safeFloor(v, fb)
+    if v ~= v or v == math.huge or v == -math.huge then return fb or 0 end
+    return math.floor(v + 0.5)
+end
+
+-- ============================================================
+-- COLOR CONSTANTS
+-- ============================================================
+local C_RED = Color3.fromRGB(200, 40,  40)
+local C_GRN = Color3.fromRGB(30,  180, 60)
+local C_ORG = Color3.fromRGB(210, 110, 0)
+local C_BLU = Color3.fromRGB(30,  100, 220)
+
+-- Modern UI theme helpers. These are intentionally lightweight so the UI
+-- feels responsive without adding a per-frame animation workload.
+local UI_ACCENT = Color3.fromRGB(0, 200, 255)
+local UI_BG     = Color3.fromRGB(9, 12, 22)
+local UI_CARD   = Color3.fromRGB(17, 21, 34)
+local UI_HOVER  = Color3.fromRGB(27, 34, 52)
+
+local function tween(obj, info, props)
+    if not obj then return end
+    pcall(function() TS:Create(obj, info, props):Play() end)
+end
+
+local function addPanelGradient(panel, a, b)
+    if not panel then return end
+    pcall(function()
+        local g = Instance.new("UIGradient")
+        g.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, a),
+            ColorSequenceKeypoint.new(1, b),
+        })
+        g.Rotation = 90
+        g.Parent = panel
+    end)
+end
+
+local function animateHover(button, normal, hover, down)
+    if not button then return end
+    button.MouseEnter:Connect(function()
+        tween(button, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = hover, BackgroundTransparency = 0.08
+        })
+    end)
+    button.MouseLeave:Connect(function()
+        tween(button, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = normal, BackgroundTransparency = 0.20
+        })
+    end)
+    button.MouseButton1Down:Connect(function()
+        tween(button, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = down or hover, BackgroundTransparency = 0.02
+        })
+    end)
+end
+
+local function pulseAccent(bar)
+    if not bar then return end
+    pcall(function()
+        local ti = TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+        TS:Create(bar, ti, {BackgroundTransparency = 0.42}):Play()
+    end)
+end
+
+-- ============================================================
+-- SETTINGS
+-- ============================================================
+local ESP_MAX_RANGE     = 750
+local ESP_STEALTH_RANGE = 60
+local LOCK_MARGIN       = 45
+local IG_CONTAINER_H    = 362
+
+local S = {
+    KB = {am="F1", es="F2", sl="F3", tr="F4"},
+    AM = {on=false, sm=0.35, md=1000, pd=0.06, tc=true, wc=true, lo=0.12},
+    SL = {on=false, sm=0.3,  md=1000, tc=true, wc=true, pd=0.05, sp=0.05},
+    TR = {on=false, dl=0.05, md=1000, rd=true, tc=true,  wc=true, hr=0.09},
+    ES = {on=false, md=ESP_MAX_RANGE, sd=ESP_STEALTH_RANGE, tc=true,
+          ce=Color3.fromRGB(255,60,60), ct=Color3.fromRGB(60,200,60)},
+    FV = {on=true,  r=130, c=Color3.fromRGB(255,255,255), th=1.5, fl=false, tr=0.55},
+    AC = {nm=true,  rg=9,  hz=true, cl=true, hi=true},
+    TP = {on=false, min=6, max=14},
+}
+
+-- Third-person camera state.
+local TP_STATE = {
+    savedMin = nil,
+    savedMax = nil,
+    applied = false,
+}
+
+local function getCameraZoom()
+    local okMin, minZoom = pcall(function() return ME.CameraMinZoomDistance end)
+    local okMax, maxZoom = pcall(function() return ME.CameraMaxZoomDistance end)
+    return okMin and minZoom or nil, okMax and maxZoom or nil
+end
+
+local function setThirdPerson(enabled)
+    local ok, err = pcall(function()
+        if enabled then
+            if not TP_STATE.applied then
+                TP_STATE.savedMin, TP_STATE.savedMax = getCameraZoom()
+            end
+
+            local minZoom = tonumber(S.TP.min) or 6
+            local maxZoom = tonumber(S.TP.max) or 14
+            minZoom = math.max(1, minZoom)
+            maxZoom = math.max(minZoom + 1, maxZoom)
+
+            ME.CameraMinZoomDistance = minZoom
+            ME.CameraMaxZoomDistance = maxZoom
+            TP_STATE.applied = true
+        else
+            if TP_STATE.applied then
+                if TP_STATE.savedMin ~= nil then
+                    ME.CameraMinZoomDistance = TP_STATE.savedMin
+                end
+                if TP_STATE.savedMax ~= nil then
+                    ME.CameraMaxZoomDistance = TP_STATE.savedMax
+                end
+            end
+
+            TP_STATE.applied = false
+            TP_STATE.savedMin = nil
+            TP_STATE.savedMax = nil
+        end
+    end)
+
+    if not ok then
+        warn("[OPSYX] Third-person camera update failed: " .. tostring(err))
+    end
+    return ok
+end
+
+local function enforceThirdPerson()
+    if not S.TP.on then return end
+    pcall(function()
+        local minZoom = math.max(1, tonumber(S.TP.min) or 6)
+        local maxZoom = math.max(minZoom + 1, tonumber(S.TP.max) or 14)
+        ME.CameraMinZoomDistance = minZoom
+        ME.CameraMaxZoomDistance = maxZoom
+        TP_STATE.applied = true
+    end)
+end
+
+local function forceWallCheck()
+    S.AM.wc = true; S.SL.wc = true; S.TR.wc = true
+end
+forceWallCheck()
+
+-- ============================================================
+-- STATE TABLE
+-- ============================================================
+local ST = {
+    cd=0, mn=false, ld=true,
+    tg=nil, tgpl=nil, tgDist=999,
+    tgPartName="?",
+    switchT=0, skipT=0,
+    igScroll=0, igQuery="", igOpen=false,
+    igSortNear=true, igLastRefresh=0,
+    igVisible=0, igDirtyHash="",
+    fr=0, espT=0,
+    espNext=0,
+    hid=false,
+    stealth=false, kills=0, killT=0, lkT=0,
+    arm=false,
+    saArm=false,
+    htArm=false,
+    _rb=nil,
+    mobArm=false,
+    holdReleased=false,
+    saToken=0,
+    -- UI drag state. Positions are stored in scaleContainer coordinates so
+    -- the normal responsive layout can be bypassed only after the user drags.
+    uiPositions = {},
+}
+
+local PILLS = {}
+local CONNS = {}
+local function hook(c) if c then CONNS[#CONNS+1] = c end end
+local GUI = {}
+local SI  = {}
+
+local holdToAimEnabled = false
+local IGNORE           = {}
+local function isIgnored(pl) return IGNORE[pl] == true end
+
+local CHAR_CONNS = {}
+
+-- ============================================================
+-- KEY MAP
+-- ============================================================
+local EN = {
+    [Enum.KeyCode.F1]="F1", [Enum.KeyCode.F2]="F2",
+    [Enum.KeyCode.F3]="F3", [Enum.KeyCode.F4]="F4",
+    [Enum.UserInputType.MouseButton2]="MouseButton2",
+}
+
+local function ef(n)
+    if not n or n == "" then return nil end
+    local ok, v = pcall(function() return Enum.KeyCode[n] end)
+    if ok and v and v ~= Enum.KeyCode.Unknown then return v end
+    ok, v = pcall(function() return Enum.UserInputType[n] end)
+    if ok and v and v ~= Enum.UserInputType.Unknown then return v end
+    return nil
+end
+
+local function mk(input, key)
+    local target = ef(S.KB[key])
+    if not target then return false end
+    local ok, tc = pcall(function() return target.EnumType end)
+    if not ok then return false end
+    if tc == Enum.KeyCode then return input.KeyCode == target
+    else return input.UserInputType == target end
+end
+
+local function isMouseBtn(input)
+    return input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.MouseButton2
+        or input.UserInputType == Enum.UserInputType.MouseButton3
+end
+
+-- ============================================================
+-- ENTITY CACHE
+-- ============================================================
+local HDS             = {"Head","head","HumanoidRootPart","Torso","UpperTorso","LowerTorso"}
+local PART_CACHE_ROOT = {}
+local PART_CACHE_HEAD = {}
+-- [PERF-5] HUM_CACHE: caches FindFirstChildOfClass("Humanoid") per character.
+-- Invalidated alongside PART_CACHE when characters change.
+local HUM_CACHE       = {}
+local LOSC            = {}
+local CHARS           = {}
+
+local function clearPartCache()
+    PART_CACHE_ROOT = {}
+    PART_CACHE_HEAD = {}
+    HUM_CACHE       = {}
+    LOSC            = {}
+end
+
+local function clearHeadCache()
+    PART_CACHE_HEAD = {}
+end
+
+-- [COMPAT-2] Two-pass deletion: collect matching keys first, then nil them.
+-- Mutating a table during pairs() iteration is implementation-defined on
+-- non-standard executor Luau forks (Madium V2, Fluxus). Two-pass is safe
+-- on all executor environments without exception.
+local function clearLOSCForChar(c)
+    if not c then return end
+    local toRemove = {}
+    local n = 0
+    for part in pairs(LOSC) do
+        if not part or part.Parent == nil or part.Parent == c then
+            n = n + 1
+            toRemove[n] = part
+        end
+    end
+    for i = 1, n do
+        LOSC[toRemove[i]] = nil
+    end
+end
+
+local function fp(c)
+    if not c then return nil end
+    local cached = PART_CACHE_ROOT[c]
+    if cached ~= nil then
+        if cached.Parent == nil then PART_CACHE_ROOT[c] = nil
+        else return cached end
+    end
+    for i = 1, #HDS do
+        local v = c:FindFirstChild(HDS[i])
+        if v and v:IsA("BasePart") then PART_CACHE_ROOT[c] = v; return v end
+    end
+    local b, by = nil, -1e9
+    for _, v in ipairs(c:GetChildren()) do
+        if v:IsA("BasePart") and v.Position.Y > by then b, by = v, v.Position.Y end
+    end
+    PART_CACHE_ROOT[c] = b
+    return b
+end
+
+local AIM_PRIORITY = {"Head","UpperTorso","HumanoidRootPart","Torso","LowerTorso"}
+local ROOT_NAMES   = {"HumanoidRootPart","Torso","LowerTorso","UpperTorso"}
+
+local function getAimPart(c)
+    if not c then return nil, "?" end
+    if ST.htArm then
+        local v = c:FindFirstChild("Head")
+        if v and v:IsA("BasePart") then
+            PART_CACHE_HEAD[c] = v
+            return v, "Head"
+        end
+        return nil, "?"
+    end
+    local cached = PART_CACHE_HEAD[c]
+    if cached and cached.Parent ~= nil then return cached, cached.Name end
+    if cached and cached.Parent == nil then PART_CACHE_HEAD[c] = nil end
+    for i = 1, #AIM_PRIORITY do
+        local v = c:FindFirstChild(AIM_PRIORITY[i])
+        if v and v:IsA("BasePart") then
+            PART_CACHE_HEAD[c] = v
+            return v, AIM_PRIORITY[i]
+        end
+    end
+    local b, by, bn = nil, -1e9, "?"
+    for _, v in ipairs(c:GetChildren()) do
+        if v:IsA("BasePart") and v.Position.Y > by then
+            b, by, bn = v, v.Position.Y, v.Name
+        end
+    end
+    if b then PART_CACHE_HEAD[c] = b end
+    return b, bn
+end
+
+-- [PERF-4] fr() now consults PART_CACHE_ROOT via fp() first, avoiding
+-- redundant FindFirstChild iterations on every call. ROOT_NAMES direct
+-- search retained as fallback for rigs where fp() returns a non-root part.
+local function fr(c)
+    if not c then return nil end
+    local cached = PART_CACHE_ROOT[c]
+    if cached ~= nil then
+        if cached.Parent == nil then PART_CACHE_ROOT[c] = nil
+        elseif cached:IsA("BasePart") then return cached end
+    end
+    for i = 1, #ROOT_NAMES do
+        local v = c:FindFirstChild(ROOT_NAMES[i])
+        if v and v:IsA("BasePart") then PART_CACHE_ROOT[c] = v; return v end
+    end
+    return fp(c)
+end
+
+-- [PERF-5] al() uses HUM_CACHE to avoid FindFirstChildOfClass on every scan.
+-- Cache is validated by checking Humanoid.Parent; stale entries evicted inline.
+local function al(c)
+    if not c then return false end
+    local h = HUM_CACHE[c]
+    if h ~= nil then
+        if h.Parent == nil then HUM_CACHE[c] = nil else return h.Health > 0 end
+    end
+    h = c:FindFirstChildOfClass("Humanoid")
+    if h then HUM_CACHE[c] = h end
+    return h ~= nil and h.Health > 0
+end
+
+-- ============================================================
+-- TEAM CHECK
+-- [COMPAT-4] TeamColor property reads wrapped in pcall.
+-- On Madium V2, Synapse X, and Script-Ware under some anti-cheat hooks,
+-- accessing TeamColor can throw. Safe fallback: treat as enemy (true),
+-- which is the conservative failure mode — prevents permanently suppressing
+-- targeting when a single property access fails.
+-- ============================================================
+local WHITE_BRICK = BrickColor.new("White")
+local function isEnemy(pl, teamCheck)
+    if pl == ME then return false end
+    if teamCheck == nil then teamCheck = S.AM.tc end
+    if not teamCheck then return true end
+    local okMy,  myCol    = pcall(function() return ME.TeamColor end)
+    local okTh,  theirCol = pcall(function() return pl.TeamColor end)
+    if not okMy or not okTh then return true end
+    if myCol == WHITE_BRICK or theirCol == WHITE_BRICK then return true end
+    return myCol ~= theirCol
+end
+
+-- ============================================================
+-- WALL CHECK
+-- ============================================================
+local RAY_PARAMS
+local RAY_FILTER = {}
+local RAY_USE_EXCLUDE = false
+
+local function ensureRayParams()
+    if not RAY_PARAMS then
+        RAY_PARAMS = RaycastParams.new()
+
+        -- Prefer the current ExcludeInstances interface when available.
+        -- Older clients/executor environments retain the existing fallback.
+        RAY_USE_EXCLUDE = pcall(function()
+            local _ = RAY_PARAMS.ExcludeInstances
+        end)
+
+        if not RAY_USE_EXCLUDE then
+            local ok, exc = pcall(function() return Enum.RaycastFilterType.Exclude end)
+            if ok and exc then
+                RAY_PARAMS.FilterType = exc
+            else
+                pcall(function()
+                    RAY_PARAMS.FilterType = Enum.RaycastFilterType.Blacklist
+                end)
+            end
+        end
+    end
+    return RAY_PARAMS
+end
+
+-- [COMPAT-3] RAY_FILTER[1] falls back to WS when ME.Character is nil.
+-- During respawn frames ME.Character is nil. A nil entry at index 1 of
+-- the filter table produces incorrect or error-prone raycast behavior on
+-- strict executor Luau builds (Madium V2, Synapse X). WS is always a
+-- valid Instance; filtering it from a ray into the workspace is harmless.
+local function los(p, targetChar)
+    if not p or not targetChar then return false end
+    local cam = CAM(); if not cam then return false end
+    local now = os.clock()
+    local c   = LOSC[p]
+    if c and c.char == targetChar and now - c.t < 0.05 then return c.v end
+    local v = false
+    local ok, r = pcall(function()
+        local cp = cam.CFrame.Position
+        local d  = p.Position - cp
+        local m  = d.Magnitude
+        if m < 1 then return nil end
+        local pa = ensureRayParams()
+        local myChar = ME.Character
+        local excluded = myChar or WS
+        if RAY_USE_EXCLUDE then
+            pa.ExcludeInstances = {excluded}
+        else
+            RAY_FILTER[1] = excluded
+            RAY_FILTER[2] = nil
+            pa.FilterDescendantsInstances = RAY_FILTER
+        end
+        return WS:Raycast(cp, d.Unit * m, pa)
+    end)
+    if ok then
+        if r then
+            v = r.Instance ~= nil and r.Instance:IsDescendantOf(targetChar)
+        else
+            v = true
+        end
+    else
+        v = false
+    end
+    LOSC[p] = {t=now, v=v, char=targetChar}
+    return v
+end
+
+-- ============================================================
+-- PROXIMITY HELPER
+-- ============================================================
+local function distToPlayer(pl)
+    local myChar = ME.Character; if not myChar then return math.huge end
+    local myRoot = fr(myChar);   if not myRoot then return math.huge end
+    local tc = pl.Character;     if not tc      then return math.huge end
+    local tr = fr(tc);           if not tr       then return math.huge end
+    return (myRoot.Position - tr.Position).Magnitude
+end
+
+-- ============================================================
+-- TARGETING
+-- ============================================================
+local function ck(pl)
+    if pl == ME then return false end
+    if isIgnored(pl) then return false end
+    local c = pl.Character
+    return c and al(c)
+end
+
+-- [COMPAT-11] flushAimCache() removed: dead code never called anywhere.
+-- clearHeadCache() and clearPartCache() are the live equivalents.
+
+local SCAN      = {t=-999, n=0, hwm=0, items={}}
+local SCAN_DT   = 1/144
+
+local function currentScanDT()
+    return FPS_SHOWN > 0 and FPS_SHOWN < 30 and (1/90) or SCAN_DT
+end
+
+local function doScan()
+    local cam = CAM(); SCAN.n = 0
+    if not cam then return end
+    local all = Players:GetPlayers()
+    local n = 0
+    local cx, cy = cam.ViewportSize.X/2, cam.ViewportSize.Y/2
+    local mousePos = UI:GetMouseLocation()
+    local mx, my = mousePos.X, mousePos.Y
+    local camPos = cam.CFrame.Position
+    local useCen = not haveMouse()
+
+    local function addPlayer(pl)
+        if not ck(pl) then return end
+        local c = pl.Character
+        local rootPart = fp(c)
+        local aimPart, aimName = getAimPart(c)
+        if not rootPart or not aimPart then return end
+        local ok2, sp, on = pcall(function()
+            return cam:WorldToViewportPoint(aimPart.Position)
+        end)
+        if not ok2 or not on then return end
+        n = n + 1
+        local e = SCAN.items[n]
+        if not e then e = {}; SCAN.items[n] = e end
+        e.pl      = pl
+        e.p       = rootPart
+        e.aimP    = aimPart
+        e.aimName = aimName
+        e.cD = math.sqrt((sp.X-cx)^2 + (sp.Y-cy)^2)
+        e.mD = useCen and e.cD or math.sqrt((sp.X-mx)^2 + (sp.Y-my)^2)
+        e.md = (camPos - rootPart.Position).Magnitude
+    end
+
+    if ST.tgpl then addPlayer(ST.tgpl) end
+    for i = 1, #all do
+        local pl = all[i]
+        if pl ~= ST.tgpl then addPlayer(pl) end
+    end
+
+    SCAN.n = n
+    if n < SCAN.hwm then
+        for i = n+1, SCAN.hwm do SCAN.items[i] = nil end
+    end
+    if n > SCAN.hwm then SCAN.hwm = n end
+end
+
+local function findTarget(fov, md, tc, wc, useCenter)
+    local now = os.clock()
+    if now - SCAN.t > currentScanDT() then SCAN.t = now; doScan() end
+    local key        = useCenter and "cD" or "mD"
+    local fovLimit   = fov or 999
+    local lockedDist = (ST.tgpl ~= nil) and ST.tgDist or 999
+    local switchThr  = lockedDist - LOCK_MARGIN
+    local bestPart, bestAimPart, bestPl, bestDist, bestAimName =
+        nil, nil, nil, fovLimit, "?"
+    for i = 1, SCAN.n do
+        local e = SCAN.items[i]
+        local d = e[key]
+        if d < fovLimit and e.md <= (md or 1000) then
+            local okT = (not tc) or isEnemy(e.pl, tc)
+            if okT and (not wc or los(e.aimP, e.pl.Character)) then
+                if e.pl == ST.tgpl then
+                    bestPart    = e.p;       bestAimPart = e.aimP
+                    bestPl      = e.pl;      bestDist    = d
+                    bestAimName = e.aimName
+                    break
+                elseif d < switchThr and d < bestDist then
+                    bestDist    = d;         bestPart    = e.p
+                    bestAimPart = e.aimP;    bestPl      = e.pl
+                    bestAimName = e.aimName
+                end
+            end
+        end
+    end
+    ST.tgDist     = bestPl ~= nil and bestDist or 999
+    ST.tgPartName = bestAimName
+    return bestAimPart, bestPl
+end
+
+-- ============================================================
+-- PREDICTION
+-- ============================================================
+local LP = {}
+
+local function pp(p, pl, pd)
+    if pd <= 0 or not pl then return p.Position end
+    local n   = os.clock()
+    local pr2 = LP[pl]
+    if not pr2 or n - pr2.t >= 0.001 then
+        LP[pl] = {pos=p.Position, t=n}
+    end
+    if pr2 and n - pr2.t > 0.005 and n - pr2.t < 0.5 then
+        local v = (p.Position - pr2.pos) / (n - pr2.t)
+        if v.Magnitude > 500 then v = v * (500 / v.Magnitude) end
+        return p.Position + v * pd
+    end
+    return p.Position
+end
+
+-- ============================================================
+-- FOV CIRCLE + LOCK TAG
+-- [COMPAT-10] Drawing probe calls (Drawing.new + :Remove()) removed.
+-- The type(Drawing)=="table" guard is sufficient to verify Drawing
+-- availability. The probe caused double-initialization on Madium V2's
+-- lazy Drawing system and provided no additional safety benefit since
+-- the outer pcall catches any Drawing.new failure regardless.
+-- ============================================================
+local FC
+pcall(function()
+    if type(Drawing) ~= "table" then return end
+    FC = Drawing.new("Circle")
+    FC.Visible      = false
+    FC.Radius       = S.FV.r
+    FC.Color        = S.FV.c
+    FC.Thickness    = S.FV.th
+    FC.NumSides     = 64
+    FC.Filled       = S.FV.fl
+    FC.Transparency = S.FV.tr
+end)
+
+local FTL
+pcall(function()
+    if type(Drawing) ~= "table" then return end
+    FTL = Drawing.new("Text")
+    FTL.Visible = false; FTL.Size = 13
+    FTL.Center  = true;  FTL.Outline = true
+    FTL.Color   = Color3.fromRGB(80,255,80); FTL.Text = ""
+    pcall(function() FTL.Font = Drawing.Fonts.UI end)
+end)
+
+-- ============================================================
+-- TARGET FLUSH
+-- ============================================================
+local function flushTarget()
+    ST.tg = nil; ST.tgpl = nil; ST.tgDist = 999; ST.tgPartName = "?"
+end
+
+-- ============================================================
+-- ESP
+-- ============================================================
+local IESP = {}
+
+local function hpColor(hum)
+    if not hum then return Color3.fromRGB(180,180,180) end
+    local max = hum.MaxHealth
+    if max <= 0 or max ~= max then return Color3.fromRGB(180,180,180) end
+    local pct = cl(hum.Health / max, 0, 1)
+    if pct > 0.6 then
+        local t = (pct-0.6)/0.4
+        local r = math.floor((1-t)*255 + 0.5)
+        local g = math.floor(180 + t*40 + 0.5)
+        return Color3.fromRGB(r, g, 0)
+    else
+        local t = pct/0.6
+        return Color3.fromRGB(200, math.floor(t*180+0.5), 0)
+    end
+end
+
+local function createInstanceESP(pl)
+    local hl, bg
+    local ok = pcall(function()
+        if IESP[pl] and not IESP[pl].fail then return end
+        local c = pl.Character; if not c then return end
+        local hlN = rn(8); local bgN = rn(9)
+        local enemy = isEnemy(pl, S.ES.tc)
+
+        hl = Instance.new("Highlight")
+        hl.Name = hlN; hl.FillTransparency = 0.5; hl.OutlineTransparency = 0.15
+        hl.FillColor = enemy and S.ES.ce or S.ES.ct
+        hl.OutlineColor = enemy
+            and Color3.fromRGB(255,80,80)
+            or  Color3.fromRGB(80,120,255)
+        hl.Adornee = c; hl.Parent = c
+        pcall(function() hl.Enabled = true end)
+
+        bg = Instance.new("BillboardGui")
+        bg.Name = bgN; bg.Size = UDim2.new(0,210,0,54)
+        bg.StudsOffset = Vector3.new(0,3.8,0); bg.AlwaysOnTop = true
+        local head = c:FindFirstChild("Head") or fp(c)
+        if head then bg.Adornee = head end
+        bg.Parent = c
+
+        local t1 = Instance.new("TextLabel")
+        t1.Size = UDim2.new(1,0,0,28); t1.BackgroundTransparency = 1
+        t1.Text = pl.Name; t1.TextColor3 = Color3.fromRGB(255,255,255)
+        t1.TextStrokeTransparency = 0.1; t1.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+        t1.Font = Enum.Font.GothamBold; t1.TextSize = 15; t1.Parent = bg
+
+        local t2 = Instance.new("TextLabel")
+        t2.Size = UDim2.new(1,0,0,20); t2.Position = UDim2.new(0,0,0,28)
+        t2.BackgroundTransparency = 1; t2.Text = ""
+        t2.TextColor3 = Color3.fromRGB(180,220,180)
+        t2.TextStrokeTransparency = 0.3; t2.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+        t2.Font = Enum.Font.Gotham; t2.TextSize = 11; t2.Parent = bg
+
+        IESP[pl] = {
+            highlight=hl, billboard=bg, txt2=t2,
+            hlN=hlN, bgN=bgN, made=os.clock(), ren=os.clock(),
+        }
+    end)
+    if not ok then
+        pcall(function() if hl then hl:Destroy() end end)
+        pcall(function() if bg then bg:Destroy() end end)
+        IESP[pl] = {fail=os.clock()}
+    end
+end
+
+local function destroyInstanceESP(pl)
+    local esp = IESP[pl]; if not esp then return end
+    if esp.fail then IESP[pl] = nil; return end
+    pcall(function() esp.highlight:Destroy() end)
+    pcall(function() esp.billboard:Destroy() end)
+    IESP[pl] = nil
+end
+
+local function destroyAllInstanceESP()
+    local players = {}
+    for pl in pairs(IESP) do players[#players+1] = pl end
+    for i = 1, #players do destroyInstanceESP(players[i]) end
+end
+
+local function renameESP(pl)
+    local esp = IESP[pl]
+    if not esp or not esp.highlight or not esp.billboard then return end
+    if not S.AC.nm then return end
+    esp.ren = os.clock()
+    pcall(function()
+        local hlN = rn(8); local bgN = rn(9)
+        esp.highlight.Name = hlN; esp.billboard.Name = bgN
+        esp.hlN = hlN; esp.bgN = bgN
+    end)
+end
+
+-- ============================================================
+-- GUI HELPERS
+-- ============================================================
+local function updBtn(name, state, onC, offC)
+    local pill = PILLS[name]
+    if not pill then return end
+    pill.BackgroundColor3 = state and onC or offC
+    pill.Text             = state and "ON" or "OFF"
+end
+
+local function setMenuVisible(v)
+    if not GUI.main then return end
+    ST.hid = not v
+    GUI.main.Visible = v
+    if not v then
+        if GUI.igPanel  then GUI.igPanel.Visible  = false end
+        if GUI.setPanel then GUI.setPanel.Visible = false end
+        ST.mn = false; ST.igOpen = false
+        SI.dragging = false; ST._rb = nil
+        if GUI.restoreBar then GUI.restoreBar.Visible = true end
+        layoutRightDock()
+    else
+        ST.hid = false
+        if GUI.restoreBar then GUI.restoreBar.Visible = false end
+        layoutRightDock()
+    end
+end
+
+local layoutRightDock
+local LAYOUT_CACHE = {
+    vw = 0, vh = 0, scale = 0,
+    mainVisible = nil, ignoreVisible = nil, settingsVisible = nil,
+    restoreVisible = nil, mobileExists = nil,
+    mainDragged = nil, ignoreDragged = nil, settingsDragged = nil,
+    mobileDragged = nil, restoreDragged = nil,
+}
+
+local function layoutCacheChanged(vw, vh, scale)
+    local main = GUI.main
+    local ig = GUI.igPanel
+    local setp = GUI.setPanel
+    local rb = GUI.restoreBar
+    local mp = GUI.mobilePanel
+    return LAYOUT_CACHE.vw ~= vw
+        or LAYOUT_CACHE.vh ~= vh
+        or LAYOUT_CACHE.scale ~= scale
+        or LAYOUT_CACHE.mainVisible ~= (main and main.Visible or false)
+        or LAYOUT_CACHE.ignoreVisible ~= (ig and ig.Visible or false)
+        or LAYOUT_CACHE.settingsVisible ~= (setp and setp.Visible or false)
+        or LAYOUT_CACHE.restoreVisible ~= (rb and rb.Visible or false)
+        or LAYOUT_CACHE.mobileExists ~= (mp ~= nil)
+        or LAYOUT_CACHE.mainDragged ~= (ST.uiPositions.main and ST.uiPositions.main.dragged or false)
+        or LAYOUT_CACHE.ignoreDragged ~= (ST.uiPositions.ignore and ST.uiPositions.ignore.dragged or false)
+        or LAYOUT_CACHE.settingsDragged ~= (ST.uiPositions.settings and ST.uiPositions.settings.dragged or false)
+        or LAYOUT_CACHE.mobileDragged ~= (ST.uiPositions.mobile and ST.uiPositions.mobile.dragged or false)
+        or LAYOUT_CACHE.restoreDragged ~= (ST.restoreBarDragged == true)
+end
+
+local function toggleKeysPanel()
+    if not GUI.setPanel then return end
+    ST.mn = not ST.mn; GUI.setPanel.Visible = ST.mn
+    layoutRightDock()
+end
+
+-- ============================================================
+-- IGNORE PANEL REFRESH
+-- ============================================================
+local function buildIgHash(list, ignoredCount)
+    local parts = {ST.igQuery, tostring(ST.igSortNear),
+                   tostring(ST.igScroll), tostring(ignoredCount),
+                   tostring(#list)}
+    for i = 1, math.min(#list, 20) do
+        parts[#parts+1] = list[i].pl.Name
+        parts[#parts+1] = tostring(list[i].dist ~= math.huge
+            and math.floor(list[i].dist) or -1)
+        parts[#parts+1] = tostring(isIgnored(list[i].pl))
+    end
+    return table.concat(parts, "|")
+end
+
+-- [PERF-8] Minimum rebuild interval on force=true path.
+-- Each forced rebuild destroys and recreates up to ~55 Instances.
+-- Fast typing or rapid scroll clicks can trigger this multiple times per frame.
+-- A 50 ms gate coalesces bursts; the hash gate handles polling calls as before.
+local _igLastForceT = 0
+
+local function refreshIgnorePanel(force)
+    local container = GUI.igContainer
+    if not container then return end
+    if force then
+        local now2 = os.clock()
+        if now2 - _igLastForceT < 0.05 then return end
+        _igLastForceT = now2
+    end
+    local q = ""
+    if GUI.igSearch and GUI.igSearch.Text then
+        q = GUI.igSearch.Text:lower()
+    end
+    if q ~= ST.igQuery then ST.igQuery = q; ST.igScroll = 0 end
+
+    local list = {}
+    local ignoredCount = 0
+    for _, pl in ipairs(Players:GetPlayers()) do
+        if pl ~= ME then
+            if q == "" or pl.Name:lower():find(q, 1, true) then
+                list[#list+1] = {pl=pl, dist=distToPlayer(pl)}
+            end
+            if isIgnored(pl) then ignoredCount = ignoredCount + 1 end
+        end
+    end
+    if ST.igSortNear then
+        table.sort(list, function(a,b)
+            if a.dist == b.dist then return a.pl.Name < b.pl.Name end
+            return a.dist < b.dist
+        end)
+    else
+        table.sort(list, function(a,b) return a.pl.Name < b.pl.Name end)
+    end
+
+    local hash = buildIgHash(list, ignoredCount)
+    if not force and hash == ST.igDirtyHash then return end
+    ST.igDirtyHash = hash
+
+    if GUI.igStatusLbl then
+        GUI.igStatusLbl.Text = #list .. " players  |  " .. ignoredCount .. " ignored"
+    end
+    if GUI.igSortBtn then
+        GUI.igSortBtn.Text = ST.igSortNear and "NEAR" or "A-Z"
+    end
+
+    for _, child in ipairs(container:GetChildren()) do
+        if child:IsA("Frame") or child:IsA("TextLabel") then child:Destroy() end
+    end
+
+    if #list == 0 then
+        local empty = Instance.new("TextLabel")
+        empty.Size = UDim2.new(1,0,0,40); empty.Position = UDim2.new(0,0,0,10)
+        empty.BackgroundTransparency = 1
+        empty.Text = q ~= "" and "No players match" or "No players in server"
+        empty.TextColor3 = Color3.fromRGB(180,180,180)
+        empty.TextSize = 13; empty.Font = Enum.Font.Gotham
+        empty.Parent = container; return
+    end
+
+    local ROW     = 32
+    local contH   = container.AbsoluteSize.Y
+    if contH <= 0 then contH = IG_CONTAINER_H end
+    local VISIBLE = math.max(1, math.floor((contH-8)/ROW))
+    ST.igVisible  = VISIBLE
+    local MAX     = math.max(0, #list-VISIBLE)
+    ST.igScroll   = cl(ST.igScroll or 0, 0, MAX)
+
+    local y = 4
+    for i = 1+ST.igScroll, math.min(#list, ST.igScroll+VISIBLE) do
+        local entry   = list[i]
+        local pl      = entry.pl
+        local dist    = entry.dist
+        local ignored = isIgnored(pl)
+        local cap     = pl
+
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1,0,0,ROW-2); row.Position = UDim2.new(0,0,0,y)
+        row.BackgroundColor3 = ignored
+            and Color3.fromRGB(110,25,25) or Color3.fromRGB(32,32,52)
+        row.BackgroundTransparency = 0.08; row.BorderSizePixel = 0
+        row.Parent = container
+        pcall(function() Instance.new("UICorner",row).CornerRadius = UDim.new(0,5) end)
+
+        local clickBtn = Instance.new("TextButton")
+        clickBtn.Size = UDim2.new(1,0,1,0); clickBtn.BackgroundTransparency = 1
+        clickBtn.Text = ""; clickBtn.ZIndex = 3; clickBtn.Parent = row
+
+        local iconLbl = Instance.new("TextLabel")
+        iconLbl.Size = UDim2.new(0,22,1,0); iconLbl.Position = UDim2.new(0,4,0,0)
+        iconLbl.BackgroundTransparency = 1
+        iconLbl.Text = ignored and "[X]" or "[ ]"
+        iconLbl.TextColor3 = ignored
+            and Color3.fromRGB(255,90,90) or Color3.fromRGB(110,110,150)
+        iconLbl.TextSize = 11; iconLbl.Font = Enum.Font.GothamBold
+        iconLbl.ZIndex = 2; iconLbl.Parent = row
+
+        local nameLbl = Instance.new("TextLabel")
+        nameLbl.Size = UDim2.new(1,-88,1,0); nameLbl.Position = UDim2.new(0,28,0,0)
+        nameLbl.BackgroundTransparency = 1; nameLbl.Text = pl.Name
+        nameLbl.TextColor3 = ignored
+            and Color3.fromRGB(255,110,110) or Color3.fromRGB(210,210,230)
+        nameLbl.TextSize = 12; nameLbl.Font = Enum.Font.GothamBold
+        nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+        nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+        nameLbl.ZIndex = 2; nameLbl.Parent = row
+
+        local distLbl = Instance.new("TextLabel")
+        distLbl.Size = UDim2.new(0,56,1,0); distLbl.Position = UDim2.new(1,-58,0,0)
+        distLbl.BackgroundTransparency = 1
+        local distStr = dist == math.huge and "? m"
+            or dist >= 1000 and (math.floor(dist/100)/10 .. "km")
+            or math.floor(dist+0.5) .. " m"
+        distLbl.Text = distStr
+        distLbl.TextColor3 = dist == math.huge and Color3.fromRGB(100,100,120)
+            or dist < 50  and Color3.fromRGB(80,220,80)
+            or dist < 150 and Color3.fromRGB(220,180,60)
+            or Color3.fromRGB(180,100,100)
+        distLbl.TextSize = 11; distLbl.Font = Enum.Font.Gotham
+        distLbl.TextXAlignment = Enum.TextXAlignment.Right
+        distLbl.ZIndex = 2; distLbl.Parent = row
+
+        clickBtn.MouseEnter:Connect(function()
+            row.BackgroundColor3 = isIgnored(cap)
+                and Color3.fromRGB(160,45,45) or Color3.fromRGB(55,55,80)
+        end)
+        clickBtn.MouseLeave:Connect(function()
+            row.BackgroundColor3 = isIgnored(cap)
+                and Color3.fromRGB(110,25,25) or Color3.fromRGB(32,32,52)
+        end)
+        clickBtn.MouseButton1Click:Connect(function()
+            if IGNORE[cap] then IGNORE[cap] = nil else IGNORE[cap] = true end
+            ST.igDirtyHash = ""
+            pcall(refreshIgnorePanel, true)
+        end)
+        y = y + ROW
+    end
+
+    local scrollDelta = math.max(1, math.floor(VISIBLE / 2))
+    if GUI.igUp then
+        GUI.igUp.BackgroundColor3 = ST.igScroll > 0
+            and Color3.fromRGB(60,40,90) or Color3.fromRGB(25,22,35)
+        GUI.igUp.TextColor3 = ST.igScroll > 0
+            and Color3.fromRGB(220,180,255) or Color3.fromRGB(70,60,90)
+        -- [COMPAT-12] SetAttribute pcall-guarded; absent on older Roblox clients.
+        pcall(function() GUI.igUp:SetAttribute("ScrollDelta", scrollDelta) end)
+    end
+    if GUI.igDown then
+        GUI.igDown.BackgroundColor3 = ST.igScroll < MAX
+            and Color3.fromRGB(60,40,90) or Color3.fromRGB(25,22,35)
+        GUI.igDown.TextColor3 = ST.igScroll < MAX
+            and Color3.fromRGB(220,180,255) or Color3.fromRGB(70,60,90)
+        pcall(function() GUI.igDown:SetAttribute("ScrollDelta", scrollDelta) end)
+    end
+end
+
+-- ============================================================
+-- AIMBOT
+-- ============================================================
+local function doAimbot(dt)
+    -- HOLD AIM: sample the actual mouse state every frame as a fallback to
+    -- InputBegan/InputEnded. Some Roblox/executor input layers can miss or
+    -- reorder release events, which previously made HOLD AIM appear stuck
+    -- or fail to arm at all.
+    local mouseHeld = false
+    pcall(function()
+        mouseHeld = UI:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+    end)
+
+    -- Derive the hold state fresh every frame. Event state is still used for
+    -- compatibility, while the real mouse state makes RMB hold reliable.
+    local htArm = holdToAimEnabled and (ST.arm or mouseHeld or (MOB and ST.mobArm))
+    ST.htArm = htArm
+
+    -- Process holdReleased FIRST before any re-arm or target-find logic.
+    if ST.holdReleased then
+        ST.holdReleased = false
+        S.AM.on  = false
+        ST.htArm = false
+        if ST.tgpl ~= nil then flushTarget() end
+        return
+    end
+
+    -- HTA mode: doAimbot() is sole authority for S.AM.on.
+    if htArm then
+        S.AM.on = true
+    end
+
+    if not S.AM.on then
+        if ST.tgpl ~= nil then flushTarget() end
+        return
+    end
+
+    local p, pl = findTarget(S.FV.r, S.AM.md, S.AM.tc, S.AM.wc, false)
+    if not p then
+        if ST.tgpl ~= nil then flushTarget() end
+        return
+    end
+
+    local now    = os.clock()
+    local prevPl = ST.tgpl
+
+    if prevPl ~= pl then
+        ST.switchT = now
+        if prevPl ~= nil then
+            ST.lkT = now + (S.AC.hz and RNG:NextNumber(0.04, S.AM.lo+0.08) or 0)
+        end
+    end
+    ST.tg = p; ST.tgpl = pl
+
+    local ramping   = ST.lkT > now
+    local switching = (prevPl ~= nil) and ((now - ST.switchT) < 0.12)
+
+    local pos = (S.AM.pd > 0) and pp(p, pl, S.AM.pd) or p.Position
+    local cam = CAM(); if not cam then return end
+
+    if not haveMouse() then
+        local lk     = CFrame.lookAt(cam.CFrame.Position, pos)
+        local sp, on = cam:WorldToViewportPoint(pos)
+        local d = on and (Vector2.new(sp.X,sp.Y)
+            - Vector2.new(cam.ViewportSize.X/2, cam.ViewportSize.Y/2)).Magnitude or 400
+        local dNorm = cl(d/350, 0, 1)
+        local sm = S.AM.sm * (1.0 - dNorm * 0.35)
+        if ramping   then sm = sm * 0.45 end
+        if switching then sm = sm * 0.35 end
+        sm = cl(sm, 0.01, 0.85)
+        -- [COMPAT-1] ^ operator replaces math.pow (deprecated/removed in modern
+        -- Luau; affects Madium V2, Synapse X, Script-Ware, Krnl, Fluxus).
+        local al2 = 1 - (1 - sm) ^ ((dt or 0.016) * 60)
+        if ramping then
+            lk = lk * CFrame.new(RNG:NextNumber(-0.4,0.4), RNG:NextNumber(-0.4,0.4), 0)
+        end
+        cam.CFrame = cam.CFrame:Lerp(lk, cl(al2, 0, 0.65))
+        return
+    end
+
+    local sp, on = cam:WorldToViewportPoint(pos)
+    if not on then return end
+    local cx, cy = cam.ViewportSize.X/2, cam.ViewportSize.Y/2
+    local dx, dy = sp.X-cx, sp.Y-cy
+    local d      = math.sqrt(dx*dx + dy*dy)
+
+    local dNorm    = cl(d/350, 0, 1)
+    local deadzone = 5 + dNorm * 4
+    if d < deadzone then return end
+
+    local sm = S.AM.sm * (1.0 - dNorm * 0.35)
+    if ramping   then sm = sm * 0.45 end
+    if switching then sm = sm * 0.35 end
+    sm = cl(sm, 0.01, 0.85)
+
+    local mx = dx * sm
+    local my = dy * sm
+
+    if ramping then
+        local js = cl(d/100, 0.02, 0.5)
+        mx = mx + RNG:NextNumber(-0.4,0.4) * js
+        my = my + RNG:NextNumber(-0.4,0.4) * js
+    end
+
+    local mm = (8 + dNorm*22) * cl((dt or 0.016)*60, 0.5, 2.0)
+    if math.abs(mx) > mm then mx = sg(dx)*mm end
+    if math.abs(my) > mm then my = sg(dy)*mm end
+
+    if now - ST.skipT > 0.8 then
+        if RNG:NextNumber() < 0.015 then ST.skipT = now; return end
+    end
+
+    if CAP.mr then
+        pcall(mousemoverel, mx, my)
+    else
+        local gx, gy = UI:GetMouseLocation().X, UI:GetMouseLocation().Y
+        pcall(mousemoveabs, gx+mx, gy+my)
+    end
+end
+
+-- ============================================================
+-- SILENT AIM
+-- ============================================================
+local function sa(dt)
+    if not S.SL.on or not ST.saArm then return end
+    local now = os.clock()
+    if now - SA_LAST < SA_INTERVAL then return end
+    SA_LAST = now
+    pcall(function()
+        local p, pl = findTarget(S.FV.r, S.SL.md, S.SL.tc, S.SL.wc, true)
+        if not p then return end
+        local cam = CAM(); if not cam then return end
+        local pos = (S.SL.pd or 0) > 0 and pp(p, pl, S.SL.pd) or p.Position
+        if S.SL.sp and S.SL.sp > 0 then
+            local so = S.SL.sp
+            pos = pos + Vector3.new(
+                RNG:NextNumber(-so,so), RNG:NextNumber(-so*0.5,so), RNG:NextNumber(-so,so))
+        end
+
+        if not haveMouse() then
+            local lk = CFrame.lookAt(cam.CFrame.Position, pos)
+            local sm = cl(S.SL.sm, 0.05, 0.9)
+            -- [COMPAT-1] ^ operator replaces math.pow
+            local al2 = 1 - (1 - sm) ^ ((dt or 0.016) * 60)
+            cam.CFrame = cam.CFrame:Lerp(lk, cl(al2, 0, 0.7))
+            return
+        end
+
+        local sp, on = cam:WorldToViewportPoint(pos)
+        if not on then return end
+        local cx, cy = cam.ViewportSize.X/2, cam.ViewportSize.Y/2
+        local dx, dy = sp.X-cx, sp.Y-cy
+        local d      = math.sqrt(dx*dx+dy*dy)
+        if d < 20 then return end
+        local sm      = S.SL.sm
+        local dtScale = cl((dt or 0.016)*60, 0.5, 2.0)
+        local mx = dx*sm*dtScale; local my = dy*sm*dtScale
+        local mm = (12 + sm*10) * dtScale
+        if math.abs(mx) > mm then mx = sg(dx)*mm end
+        if math.abs(my) > mm then my = sg(dy)*mm end
+        if CAP.mr then pcall(mousemoverel, mx, my)
+        else
+            local gx, gy = UI:GetMouseLocation().X, UI:GetMouseLocation().Y
+            pcall(mousemoveabs, gx+mx, gy+my)
+        end
+    end)
+end
+
+-- ============================================================
+-- TRIGGERBOT
+-- ============================================================
+local function sc()
+    if CAP.ia then
+        local ok, act = pcall(isrbxactive)
+        if not (ok and act) then return end
+    end
+    if CAP.c1 then mouse1click(); return end
+    if CAP.cp and CAP.cr then mouse1press(); tw(0.015); mouse1release() end
+end
+
+local function tb()
+    if not S.TR.on or (not ST.arm and not ST.mobArm) then return end
+    pcall(function()
+        local n = os.clock()
+        if n < ST.cd then return end
+        if RNG:NextNumber() < 0.15 then return end
+        if S.AC.hz and RNG:NextNumber() < 0.08 then return end
+        local p = findTarget(15, S.TR.md, S.TR.tc, S.TR.wc, true)
+        if not p then return end
+        local cam = CAM(); if not cam then return end
+        local sp, on = cam:WorldToViewportPoint(p.Position)
+        if not on then return end
+        local cx, cy = cam.ViewportSize.X/2, cam.ViewportSize.Y/2
+        if math.sqrt((sp.X-cx)^2+(sp.Y-cy)^2) > 8+(S.AC.hz and RNG:NextNumber(-2,5) or 0) then return end
+        local dl = S.TR.dl
+        if S.TR.rd then dl = dl + RNG:NextNumber(-0.02,0.035) end
+        if S.AC.hz then dl = math.max(dl, S.TR.hr + RNG:NextNumber(0,0.06)) end
+        ST.cd = n + math.max(dl, 0.05)
+        if dl <= 0.05 then
+            sc()
+        else
+            dl = cl(dl, 0.05, 0.3)
+            tsp(function()
+                tw(dl)
+                if not (ST.ld and S.TR.on and (ST.arm or ST.mobArm)) then return end
+                local p2 = findTarget(15, S.TR.md, S.TR.tc, S.TR.wc, true)
+                if not p2 then return end
+                local cam2 = CAM(); if not cam2 then return end
+                local sp2, on2 = cam2:WorldToViewportPoint(p2.Position)
+                if not on2 then return end
+                local cx2, cy2 = cam2.ViewportSize.X/2, cam2.ViewportSize.Y/2
+                if math.sqrt((sp2.X-cx2)^2+(sp2.Y-cy2)^2) > 12 then return end
+                sc()
+            end)
+        end
+    end)
+end
+
+-- ============================================================
+-- DRAGGABLE DESKTOP PANELS
+-- Allows the main menu, Ignore List, and Settings panels to be moved
+-- independently with mouse or touch.  Dragged positions are stored in
+-- ST.uiPositions and are respected by layoutRightDock(), preventing the
+-- responsive layout pass from snapping a panel back every frame.
+--
+-- [PERF-7] All draggable panels share ONE global UI.InputChanged connection.
+-- Previously each call to makeDraggable() registered its own InputChanged
+-- listener; with 5 panels this meant 5 closures firing on every mouse-move
+-- event even when no drag was active. The shared dispatcher exits immediately
+-- when ACTIVE_DRAG is nil, costing only one nil-check per mouse-move.
+-- ============================================================
+local ACTIVE_DRAG = nil  -- set to the drag context of whichever panel is dragging
+
+-- [PERF-7] Shared InputChanged handler — one global connection for all panels
+-- and the FOV slider. Previously each registered its own InputChanged listener.
+-- Now a single listener handles all, exiting immediately when nothing is active.
+local function _sharedDragMove(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseMovement
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+    -- FOV slider update (SI is declared in cg() but accessed via upvalue).
+    if SI and SI.dragging then
+        SI.pointerX = input.Position.X
+    end
+    if not ACTIVE_DRAG then return end
+    local ctx = ACTIVE_DRAG
+    if not ctx.dragStart then return end
+    local sc = (GUI.uiScale and GUI.uiScale.Scale or 1)
+    if not sc or sc <= 0 then sc = 1 end
+    local dx = (input.Position.X - ctx.dragStart.X) / sc
+    local dy = (input.Position.Y - ctx.dragStart.Y) / sc
+    if math.abs(dx) > 3 or math.abs(dy) > 3 then ctx.moved = true end
+    local cam = CAM()
+    local x, y = ctx.startX + dx, ctx.startY + dy
+    if cam then
+        local vw = cam.ViewportSize.X / sc
+        local vh = cam.ViewportSize.Y / sc
+        -- restoreBar uses its fixed Size dimensions; other panels use AbsoluteSize.
+        local pw, ph
+        if ctx.fixedW then
+            pw = math.max(1, ctx.fixedW)
+            ph = math.max(1, ctx.fixedH or ctx.fixedW)
+        else
+            pw = math.max(1, ctx.panel.AbsoluteSize.X / sc)
+            ph = math.max(1, ctx.panel.AbsoluteSize.Y / sc)
+        end
+        x = math.clamp(x, 0, math.max(0, vw - pw))
+        y = math.clamp(y, 0, math.max(0, vh - ph))
+    end
+    if ctx.key == "__restoreBar" then
+        -- Restore bar stores position in ST.restoreBarDragged/X/Y (not ST.uiPositions).
+        ST.restoreBarDragged = true
+        ST.restoreBarX = x
+        ST.restoreBarY = y
+    else
+        ST.uiPositions[ctx.key] = {x=x, y=y, dragged=true}
+    end
+    ctx.panel.Position = UDim2.fromOffset(math.floor(x+0.5), math.floor(y+0.5))
+end
+
+hook(UI.InputChanged:Connect(_sharedDragMove))  -- single global connection replaces N per-panel connections
+
+local function makeDraggable(panel, handle, key)
+    if not panel or not handle then return end
+
+    pcall(function()
+        panel.Active = true
+        handle.Active = true
+    end)
+
+    local function beginDrag(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        local sc = (GUI.uiScale and GUI.uiScale.Scale or 1)
+        if not sc or sc <= 0 then sc = 1 end
+        panel.AnchorPoint = Vector2.new(0, 0)
+        ACTIVE_DRAG = {
+            panel    = panel,
+            key      = key,
+            dragStart = input.Position,
+            startX   = panel.AbsolutePosition.X / sc,
+            startY   = panel.AbsolutePosition.Y / sc,
+            moved    = false,
+        }
+        local endConn
+        endConn = input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                if ACTIVE_DRAG and ACTIVE_DRAG.key == key then
+                    ACTIVE_DRAG = nil
+                end
+                if endConn then endConn:Disconnect() end
+            end
+        end)
+        hook(endConn)
+    end
+
+    hook(handle.InputBegan:Connect(beginDrag))
+end
+
+local function applyDraggedPanelPosition(panel, key)
+    if not panel then return false end
+
+    local state = ST.uiPositions[key]
+    if not state or not state.dragged
+        or state.x == nil or state.y == nil then
+        return false
+    end
+
+    local cam = CAM()
+    if not cam then return false end
+
+    local sc = GUI.uiScale and GUI.uiScale.Scale or 1
+    if not sc or sc <= 0 then sc = 1 end
+
+    local vw = cam.ViewportSize.X / sc
+    local vh = cam.ViewportSize.Y / sc
+    local pw = math.max(1, panel.Size.X.Offset)
+    local ph = math.max(1, panel.Size.Y.Offset)
+
+    local x = math.clamp(state.x, 0, math.max(0, vw - pw))
+    local y = math.clamp(state.y, 0, math.max(0, vh - ph))
+
+    state.x, state.y = x, y
+    panel.AnchorPoint = Vector2.new(0, 0)
+    panel.Position = UDim2.fromOffset(
+        math.floor(x + 0.5),
+        math.floor(y + 0.5)
+    )
+    return true
+end
+
+-- ============================================================
+-- GUI CONSTRUCTION
+-- ============================================================
+local function cg()
+    local gn  = rs(16); local mn2 = rs(12)
+    local sn  = rs(12); local bn  = rs(12)
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = gn; screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    -- [COMPAT-6] 10-second timeout on WaitForChild to prevent indefinite
+    -- yield on early-injection executors (Madium V2, Krnl, Fluxus) where
+    -- PlayerGui may not yet be replicated when the script runs.
+    -- WaitForChild can time out and return nil without throwing.  In that
+    -- case pcall() still returns true, so the old code incorrectly skipped
+    -- the CoreGui fallback and left the ScreenGui parentless.
+    local guiParent = nil
+    local ok = pcall(function()
+        guiParent = ME:WaitForChild("PlayerGui", 10)
+    end)
+
+    if ok and guiParent then
+        local okParent = pcall(function()
+            screenGui.Parent = guiParent
+        end)
+        if not okParent or screenGui.Parent ~= guiParent then
+            guiParent = nil
+        end
+    end
+
+    if not guiParent then
+        local okFallback = pcall(function()
+            screenGui.Parent = CG
+            guiParent = screenGui.Parent
+        end)
+        if not okFallback or not guiParent then
+            pcall(function() screenGui:Destroy() end)
+            print("[V9.36-OPSYX] No GUI parent")
+            return
+        end
+    end
+    GUI.sg = screenGui
+    if not ST.ourGuis then ST.ourGuis = {} end
+    table.insert(ST.ourGuis, screenGui)
+
+    local scaleContainer = Instance.new("Frame")
+    scaleContainer.Name = "OPSYXScaleRoot"
+    scaleContainer.Size = UDim2.new(1,0,1,0)
+    scaleContainer.BackgroundTransparency = 1
+    scaleContainer.BorderSizePixel = 0
+    scaleContainer.Parent = screenGui
+
+    local uiScale = Instance.new("UIScale")
+    uiScale.Scale = 1.0
+    uiScale.Parent = scaleContainer
+    GUI.uiScale = uiScale
+
+    local MENU_W     = 215
+    local MENU_H     = 320
+    local MENU_X_OFF = -16
+
+    local main = Instance.new("Frame")
+    main.Name = mn2
+    main.Size = UDim2.new(0, MENU_W, 0, MENU_H)
+    main.AnchorPoint = Vector2.new(1, 0)
+    main.Position = UDim2.new(1, MENU_X_OFF, 0, 70)
+    main.BackgroundColor3 = UI_BG
+    main.BackgroundTransparency = 0.06
+    main.BorderSizePixel = 0; main.Active = true
+    main.Parent = scaleContainer
+    pcall(function()
+        Instance.new("UICorner",main).CornerRadius = UDim.new(0,10)
+        local st = Instance.new("UIStroke",main)
+        st.Color = UI_ACCENT; st.Thickness = 1.4; st.Transparency = 0.08
+        addPanelGradient(main, Color3.fromRGB(12,16,28), Color3.fromRGB(7,9,17))
+    end)
+    GUI.main = main
+
+    local accent = Instance.new("Frame")
+    accent.Size = UDim2.new(1,0,0,2); accent.Position = UDim2.new(0,0,0,26)
+    accent.BackgroundColor3 = UI_ACCENT
+    accent.BorderSizePixel = 0; accent.Parent = main
+    pulseAccent(accent)
+
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Size = UDim2.new(1,-52,0,26); titleLbl.Position = UDim2.new(0,10,0,0)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = "JM's Script  |  -- FPS"
+    titleLbl.TextColor3 = UI_ACCENT
+    titleLbl.TextSize = 13; titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.Parent = main
+    GUI.titleLabel = titleLbl
+    titleLbl.Active = true
+
+    local WBTN = 20; local WCY = 3
+    local function makeWBtn(xOff, col, lbl2)
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(0,WBTN,0,WBTN); b.Position = UDim2.new(1,xOff,0,WCY)
+        b.BackgroundColor3 = col; b.BackgroundTransparency = 0.15
+        b.BorderSizePixel = 0; b.Text = lbl2
+        b.TextColor3 = Color3.fromRGB(255,255,255)
+        b.TextSize = 12; b.Font = Enum.Font.GothamBold; b.Parent = main
+        pcall(function() Instance.new("UICorner",b).CornerRadius = UDim.new(0,5) end)
+        return b
+    end
+    local minBtn   = makeWBtn(-(WBTN*2+8), Color3.fromRGB(50,50,80),  "-")
+    local closeBtn = makeWBtn(-(WBTN+4),   Color3.fromRGB(120,30,30), "X")
+
+    minBtn.MouseEnter:Connect(function()   minBtn.BackgroundColor3   = Color3.fromRGB(80,80,120) end)
+    minBtn.MouseLeave:Connect(function()   minBtn.BackgroundColor3   = Color3.fromRGB(50,50,80)  end)
+    closeBtn.MouseEnter:Connect(function() closeBtn.BackgroundColor3 = Color3.fromRGB(200,40,40) end)
+    closeBtn.MouseLeave:Connect(function() closeBtn.BackgroundColor3 = Color3.fromRGB(120,30,30) end)
+
+    local restoreBar = Instance.new("TextButton")
+    restoreBar.Size = UDim2.new(0,110,0,22)
+    restoreBar.AnchorPoint = Vector2.new(1, 0)
+    restoreBar.Position = UDim2.new(1,-16,0,10)
+    restoreBar.BackgroundColor3 = Color3.fromRGB(10,10,18)
+    restoreBar.BackgroundTransparency = 0.06; restoreBar.BorderSizePixel = 0
+    restoreBar.Text = "OPSYX | -- FPS"
+    restoreBar.TextColor3 = UI_ACCENT
+    restoreBar.TextSize = 11; restoreBar.Font = Enum.Font.GothamBold
+    restoreBar.Visible = false; restoreBar.Parent = scaleContainer
+    pcall(function()
+        Instance.new("UICorner",restoreBar).CornerRadius = UDim.new(0,6)
+        local st = Instance.new("UIStroke",restoreBar)
+        st.Color = UI_ACCENT; st.Thickness = 1
+    end)
+    GUI.restoreBar = restoreBar
+    restoreBar.MouseEnter:Connect(function()
+        tween(restoreBar, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0.02})
+    end)
+    restoreBar.MouseLeave:Connect(function()
+        tween(restoreBar, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0.06})
+    end)
+
+    minBtn.MouseButton1Down:Connect(function()     setMenuVisible(false) end)
+    closeBtn.MouseButton1Down:Connect(function()   setMenuVisible(false) end)
+
+    -- ============================================================
+    -- DRAGGABLE FPS / RESTORE BAR
+    -- Drag the small "OPSYX | FPS" bar anywhere on the screen.
+    -- It stays clamped inside the viewport and survives resize/scale.
+    -- A simple click still restores the main menu.
+    -- ============================================================
+    ST.restoreBarDragged = false
+    ST.restoreBarX = nil
+    ST.restoreBarY = nil
+
+    -- [PERF-7] Restore bar drag uses the shared ACTIVE_DRAG pattern.
+    -- No separate UI.InputChanged connection; the global handler dispatches here.
+    do
+        hook(restoreBar.InputBegan:Connect(function(input)
+            if input.UserInputType ~= Enum.UserInputType.MouseButton1
+                and input.UserInputType ~= Enum.UserInputType.Touch then
+                return
+            end
+            local sc = (GUI.uiScale and GUI.uiScale.Scale or 1)
+            if not sc or sc <= 0 then sc = 1 end
+            restoreBar.AnchorPoint = Vector2.new(0, 0)
+            -- Use a special key "restoreBar" so the shared handler knows to
+            -- update ST.restoreBarDragged/X/Y instead of ST.uiPositions.
+            ACTIVE_DRAG = {
+                panel     = restoreBar,
+                key       = "__restoreBar",
+                dragStart = input.Position,
+                startX    = restoreBar.AbsolutePosition.X / sc,
+                startY    = restoreBar.AbsolutePosition.Y / sc,
+                moved     = false,
+                -- Dimensions for clamping (restoreBar uses fixed size, not AbsoluteSize which may lag)
+                fixedW    = restoreBar.Size.X.Offset,
+                fixedH    = restoreBar.Size.Y.Offset,
+                onEnd     = function(ctx)
+                    -- Only restore on a plain click, not after an actual drag.
+                    if not ctx.moved then setMenuVisible(true) end
+                end,
+            }
+            local endConn
+            endConn = input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    if ACTIVE_DRAG and ACTIVE_DRAG.key == "__restoreBar" then
+                        local ctx = ACTIVE_DRAG
+                        ACTIVE_DRAG = nil
+                        if ctx.onEnd then ctx.onEnd(ctx) end
+                    end
+                    if endConn then endConn:Disconnect() end
+                end
+            end)
+            hook(endConn)
+        end))
+    end
+
+    local function makeToggle(lbl, yPos, offCol, onCol, getter, setter)
+        local PAD = 8
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1,-PAD*2,0,26); row.Position = UDim2.new(0,PAD,0,yPos)
+        row.BackgroundColor3 = UI_CARD
+        row.BackgroundTransparency = 0.22; row.BorderSizePixel = 0; row.Parent = main
+        pcall(function()
+            Instance.new("UICorner",row).CornerRadius = UDim.new(0,7)
+            local rs = Instance.new("UIStroke",row)
+            rs.Color = Color3.fromRGB(55,65,90); rs.Transparency = 0.72; rs.Thickness = 1
+        end)
+        row.MouseEnter:Connect(function() tween(row, TweenInfo.new(0.10), {BackgroundTransparency = 0.06}) end)
+        row.MouseLeave:Connect(function() tween(row, TweenInfo.new(0.14), {BackgroundTransparency = 0.22}) end)
+
+        local lbEl = Instance.new("TextLabel")
+        lbEl.Size = UDim2.new(1,-56,1,0); lbEl.BackgroundTransparency = 1
+        lbEl.Text = lbl; lbEl.TextColor3 = Color3.fromRGB(210,210,225)
+        lbEl.TextSize = 12; lbEl.Font = Enum.Font.GothamBold
+        lbEl.TextXAlignment = Enum.TextXAlignment.Left
+        lbEl.Position = UDim2.new(0,8,0,0); lbEl.Parent = row
+
+        local pill = Instance.new("TextButton")
+        pill.Size = UDim2.new(0,46,0,18); pill.Position = UDim2.new(1,-50,0.5,-9)
+        pill.BackgroundColor3 = getter() and onCol or offCol
+        pill.BorderSizePixel = 0; pill.Text = getter() and "ON" or "OFF"
+        pill.TextColor3 = Color3.fromRGB(255,255,255)
+        pill.TextSize = 10; pill.Font = Enum.Font.GothamBold; pill.Parent = row
+        pcall(function() Instance.new("UICorner",pill).CornerRadius = UDim.new(1,0) end)
+        pill.MouseEnter:Connect(function() tween(pill, TweenInfo.new(0.10), {BackgroundTransparency = 0.02}) end)
+        pill.MouseLeave:Connect(function() tween(pill, TweenInfo.new(0.14), {BackgroundTransparency = 0}) end)
+
+        PILLS[lbl] = pill
+        local function refresh()
+            local ns = getter()
+            pill.BackgroundColor3 = ns and onCol or offCol
+            pill.Text             = ns and "ON" or "OFF"
+        end
+        pill.MouseButton1Down:Connect(function() setter(); refresh() end)
+        return pill
+    end
+
+    local Y = 32; local GAP = 30
+
+    makeToggle("AIMBOT", Y, C_RED, C_GRN,
+        function() return S.AM.on end,
+        function()
+            if holdToAimEnabled then return end
+            S.AM.on = not S.AM.on
+            if not S.AM.on and ST.tgpl ~= nil then flushTarget() end
+        end)
+    Y = Y+GAP
+
+    makeToggle("ESP", Y, C_RED, C_GRN,
+        function() return S.ES.on end,
+        function() S.ES.on=not S.ES.on; if not S.ES.on then destroyAllInstanceESP() end end)
+    Y = Y+GAP
+
+    makeToggle("SILENT", Y, C_ORG, C_GRN,
+        function() return S.SL.on end,
+        function() S.SL.on=not S.SL.on end)
+    Y = Y+GAP
+
+    makeToggle("TRIGGER", Y, C_RED, C_GRN,
+        function() return S.TR.on end,
+        function() S.TR.on=not S.TR.on end)
+    Y = Y+GAP
+
+    makeToggle("FOV CIRCLE", Y, C_BLU, C_GRN,
+        function() return S.FV.on end,
+        function() S.FV.on=not S.FV.on end)
+    Y = Y+GAP
+
+    makeToggle("WALL CHECK", Y, C_ORG, C_GRN,
+        function() return true end,
+        function() S.AM.wc=true; S.SL.wc=true; S.TR.wc=true end)
+    Y = Y+GAP
+
+    makeToggle("HOLD AIM", Y, C_ORG, C_GRN,
+        function() return holdToAimEnabled end,
+        function()
+            holdToAimEnabled = not holdToAimEnabled
+            -- When enabled, RMB is sampled every RenderStepped frame.
+            -- When disabled, return control of AIMBOT to its normal toggle.
+            if not holdToAimEnabled then
+                S.AM.on = false
+                ST.arm = false; ST.saArm = false
+                ST.htArm = false
+                ST.holdReleased = false
+                if ST.tgpl ~= nil then flushTarget() end
+            else
+                clearHeadCache()
+            end
+        end)
+    Y = Y+GAP
+
+    local function makeTextBtn(lbl2, yPos, bgCol, txtCol)
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(1,-16,0,26); b.Position = UDim2.new(0,8,0,yPos)
+        b.BackgroundColor3 = bgCol; b.BackgroundTransparency = 0.2
+        b.BorderSizePixel = 0; b.Text = lbl2
+        b.TextColor3 = txtCol; b.TextSize = 12; b.Font = Enum.Font.GothamBold
+        b.Parent = main
+        pcall(function() Instance.new("UICorner",b).CornerRadius = UDim.new(0,7) end)
+        animateHover(b, bgCol, UI_HOVER, bgCol)
+        return b
+    end
+
+    local igBtn  = makeTextBtn("IGNORE LIST", Y, Color3.fromRGB(55,20,65),  Color3.fromRGB(200,140,255))
+    Y = Y+GAP
+    local setBtn = makeTextBtn("SETTINGS",  Y, Color3.fromRGB(25,25,70),  Color3.fromRGB(150,180,255))
+
+    local IG_W = 250
+    local igPanel = Instance.new("Frame")
+    igPanel.Name = bn
+    igPanel.Size = UDim2.new(0, IG_W, 0, 524)
+    igPanel.AnchorPoint = Vector2.new(1, 0)
+    igPanel.Position = UDim2.new(1,-(MENU_W + 26),0,70)
+    igPanel.BackgroundColor3 = UI_BG
+    igPanel.BackgroundTransparency = 0.06; igPanel.BorderSizePixel = 0
+    igPanel.Active = true
+    igPanel.Visible = false; igPanel.Parent = scaleContainer
+    pcall(function()
+        Instance.new("UICorner",igPanel).CornerRadius = UDim.new(0,10)
+        local st = Instance.new("UIStroke",igPanel)
+        st.Color = Color3.fromRGB(160,80,230); st.Thickness = 1.3; st.Transparency = 0.08
+        addPanelGradient(igPanel, Color3.fromRGB(18,13,30), Color3.fromRGB(8,9,18))
+    end)
+    GUI.igPanel = igPanel
+
+    local igTitle = Instance.new("TextLabel")
+    igTitle.Size = UDim2.new(1,0,0,24); igTitle.Position = UDim2.new(0,0,0,4)
+    igTitle.BackgroundTransparency = 1; igTitle.Text = "IGNORE LIST"
+    igTitle.TextColor3 = Color3.fromRGB(200,150,255)
+    igTitle.TextSize = 13; igTitle.Font = Enum.Font.GothamBold
+    igTitle.Active = true
+    igTitle.Parent = igPanel
+
+    local igStatusLbl = Instance.new("TextLabel")
+    igStatusLbl.Size = UDim2.new(1,-12,0,16); igStatusLbl.Position = UDim2.new(0,6,0,26)
+    igStatusLbl.BackgroundTransparency = 1
+    igStatusLbl.Text = "-- players  |  -- ignored"
+    igStatusLbl.TextColor3 = Color3.fromRGB(130,130,160)
+    igStatusLbl.TextSize = 10; igStatusLbl.Font = Enum.Font.Gotham
+    igStatusLbl.TextXAlignment = Enum.TextXAlignment.Left
+    igStatusLbl.Parent = igPanel
+    GUI.igStatusLbl = igStatusLbl
+
+    local igSearch = Instance.new("TextBox")
+    igSearch.Size = UDim2.new(1,-10,0,24); igSearch.Position = UDim2.new(0,5,0,44)
+    igSearch.BackgroundColor3 = Color3.fromRGB(20,20,34); igSearch.BackgroundTransparency = 0.2
+    igSearch.BorderSizePixel = 0; igSearch.PlaceholderText = "Search player..."
+    igSearch.Text = ""; igSearch.TextColor3 = Color3.fromRGB(220,220,255)
+    igSearch.PlaceholderColor3 = Color3.fromRGB(100,100,135)
+    igSearch.TextSize = 12; igSearch.Font = Enum.Font.Gotham
+    igSearch.ClearTextOnFocus = false; igSearch.Parent = igPanel
+    pcall(function() Instance.new("UICorner",igSearch).CornerRadius = UDim.new(0,5) end)
+    GUI.igSearch = igSearch
+    igSearch:GetPropertyChangedSignal("Text"):Connect(function()
+        ST.igDirtyHash = ""
+        pcall(refreshIgnorePanel, true)
+    end)
+
+    local igSortBtn = Instance.new("TextButton")
+    igSortBtn.Size = UDim2.new(1,-10,0,22); igSortBtn.Position = UDim2.new(0,5,0,70)
+    igSortBtn.BackgroundColor3 = Color3.fromRGB(40,25,60); igSortBtn.BackgroundTransparency = 0.2
+    igSortBtn.BorderSizePixel = 0
+    igSortBtn.Text = ST.igSortNear and "NEAR" or "A-Z"
+    igSortBtn.TextColor3 = Color3.fromRGB(190,140,255)
+    igSortBtn.TextSize = 11; igSortBtn.Font = Enum.Font.GothamBold
+    igSortBtn.Parent = igPanel
+    pcall(function() Instance.new("UICorner",igSortBtn).CornerRadius = UDim.new(0,5) end)
+    GUI.igSortBtn = igSortBtn
+    igSortBtn.MouseButton1Down:Connect(function()
+        ST.igSortNear = not ST.igSortNear
+        ST.igDirtyHash = ""
+        pcall(refreshIgnorePanel, true)
+    end)
+
+    local igContainer = Instance.new("Frame")
+    igContainer.Size = UDim2.new(1,-10,0,IG_CONTAINER_H)
+    igContainer.Position = UDim2.new(0,5,0,95)
+    igContainer.BackgroundTransparency = 1; igContainer.BorderSizePixel = 0
+    igContainer.ClipsDescendants = true; igContainer.Parent = igPanel
+    GUI.igContainer = igContainer
+
+    local igUp = Instance.new("TextButton")
+    igUp.Size = UDim2.new(0,70,0,26); igUp.Position = UDim2.new(0,8,1,-60)
+    igUp.BackgroundColor3 = Color3.fromRGB(25,22,35); igUp.BackgroundTransparency = 0.2
+    igUp.BorderSizePixel = 0; igUp.Text = "UP"
+    igUp.TextColor3 = Color3.fromRGB(70,60,90); igUp.TextSize = 11
+    igUp.Font = Enum.Font.GothamBold; igUp.Parent = igPanel
+    pcall(function() Instance.new("UICorner",igUp).CornerRadius = UDim.new(0,5) end)
+    -- [COMPAT-8] GetAttribute pcall-guarded: absent on older Roblox client
+    -- builds targeted by some Synapse X and Krnl versions.
+    igUp.MouseButton1Down:Connect(function()
+        local ok2, delta = pcall(function() return igUp:GetAttribute("ScrollDelta") end)
+        delta = (ok2 and delta) or 1
+        ST.igScroll = math.max(0, (ST.igScroll or 0) - delta)
+        ST.igDirtyHash = ""
+        pcall(refreshIgnorePanel, true)
+    end)
+    GUI.igUp = igUp
+
+    local igDown = Instance.new("TextButton")
+    igDown.Size = UDim2.new(0,70,0,26); igDown.Position = UDim2.new(0,84,1,-60)
+    igDown.BackgroundColor3 = Color3.fromRGB(25,22,35); igDown.BackgroundTransparency = 0.2
+    igDown.BorderSizePixel = 0; igDown.Text = "DOWN"
+    igDown.TextColor3 = Color3.fromRGB(70,60,90); igDown.TextSize = 11
+    igDown.Font = Enum.Font.GothamBold; igDown.Parent = igPanel
+    pcall(function() Instance.new("UICorner",igDown).CornerRadius = UDim.new(0,5) end)
+    igDown.MouseButton1Down:Connect(function()
+        local ok2, delta = pcall(function() return igDown:GetAttribute("ScrollDelta") end)
+        delta = (ok2 and delta) or 1
+        ST.igScroll = (ST.igScroll or 0) + delta
+        ST.igDirtyHash = ""
+        pcall(refreshIgnorePanel, true)
+    end)
+    GUI.igDown = igDown
+
+    local igClearBtn = Instance.new("TextButton")
+    igClearBtn.Size = UDim2.new(0,58,0,26); igClearBtn.Position = UDim2.new(1,-66,1,-60)
+    igClearBtn.BackgroundColor3 = Color3.fromRGB(70,20,20); igClearBtn.BackgroundTransparency = 0.2
+    igClearBtn.BorderSizePixel = 0; igClearBtn.Text = "CLEAR"
+    igClearBtn.TextColor3 = Color3.fromRGB(255,130,130); igClearBtn.TextSize = 10
+    igClearBtn.Font = Enum.Font.GothamBold; igClearBtn.Parent = igPanel
+    pcall(function() Instance.new("UICorner",igClearBtn).CornerRadius = UDim.new(0,5) end)
+    igClearBtn.MouseButton1Down:Connect(function()
+        -- Two-pass cleanup: do not mutate IGNORE while pairs() is iterating.
+        local keys, n = {}, 0
+        for pl in pairs(IGNORE) do
+            n = n + 1
+            keys[n] = pl
+        end
+        for i = 1, n do
+            IGNORE[keys[i]] = nil
+        end
+        ST.igDirtyHash = ""
+        pcall(refreshIgnorePanel, true)
+    end)
+
+    local igClose = Instance.new("TextButton")
+    igClose.Size = UDim2.new(0,60,0,24); igClose.Position = UDim2.new(0.5,-30,1,-28)
+    igClose.BackgroundColor3 = Color3.fromRGB(50,18,18); igClose.BackgroundTransparency = 0.2
+    igClose.BorderSizePixel = 0; igClose.Text = "CLOSE"
+    igClose.TextColor3 = Color3.fromRGB(255,140,140); igClose.TextSize = 11
+    igClose.Font = Enum.Font.GothamBold; igClose.Parent = igPanel
+    pcall(function() Instance.new("UICorner",igClose).CornerRadius = UDim.new(0,5) end)
+    igClose.MouseButton1Down:Connect(function() igPanel.Visible=false; ST.igOpen=false; layoutRightDock() end)
+
+    igBtn.MouseButton1Down:Connect(function()
+        ST.igOpen = not ST.igOpen; igPanel.Visible = ST.igOpen
+        layoutRightDock()
+        if ST.igOpen then
+            ST.igDirtyHash = ""
+            tdf(function() pcall(refreshIgnorePanel, true) end)
+        end
+    end)
+
+    local SET_W = 345
+    local setP = Instance.new("Frame")
+    setP.Name = sn
+    setP.Size = UDim2.new(0, SET_W, 0, 400)
+    setP.AnchorPoint = Vector2.new(1, 0)
+    setP.Position = UDim2.new(1,-(MENU_W + IG_W + 36),0,70)
+    setP.BackgroundColor3 = UI_BG
+    setP.BackgroundTransparency = 0.06; setP.BorderSizePixel = 0
+    setP.Active = true
+    setP.Visible = false; setP.Parent = scaleContainer
+    pcall(function()
+        Instance.new("UICorner",setP).CornerRadius = UDim.new(0,10)
+        local st = Instance.new("UIStroke",setP)
+        st.Color = UI_ACCENT; st.Thickness = 1.3; st.Transparency = 0.08
+        addPanelGradient(setP, Color3.fromRGB(12,16,28), Color3.fromRGB(7,9,17))
+    end)
+    GUI.setPanel = setP
+
+    local spTitle = Instance.new("TextLabel")
+    spTitle.Size = UDim2.new(1,0,0,28); spTitle.BackgroundTransparency = 1
+    spTitle.Text = "SETTINGS"
+    spTitle.TextColor3 = Color3.fromRGB(255,200,80)
+    spTitle.TextSize = 12; spTitle.Font = Enum.Font.GothamBold
+    spTitle.Active = true; spTitle.Parent = setP
+
+    local spAccent = Instance.new("Frame")
+    spAccent.Size = UDim2.new(1,0,0,1); spAccent.Position = UDim2.new(0,0,0,28)
+    spAccent.BackgroundColor3 = UI_ACCENT
+    spAccent.BorderSizePixel = 0; spAccent.Parent = setP
+    pulseAccent(spAccent)
+
+    local KPAD   = 10
+    local KLBL_W = 140
+    local KBTN_W = SET_W - KPAD*2 - KLBL_W - 10
+
+    local KB_BTNS = {}
+    local binds = {
+        {l="Aimbot",  k="am"},{l="ESP",     k="es"},
+        {l="Silent",  k="sl"},{l="Trigger", k="tr"},
+    }
+    for i = 1, #binds do
+        local bd = binds[i]; local ry = 36+(i-1)*34
+        local lbl2 = Instance.new("TextLabel")
+        lbl2.Size = UDim2.new(0,KLBL_W,0,26); lbl2.Position = UDim2.new(0,KPAD,0,ry)
+        lbl2.BackgroundTransparency = 1; lbl2.Text = bd.l
+        lbl2.TextColor3 = Color3.fromRGB(190,190,200)
+        lbl2.TextSize = 12; lbl2.Font = Enum.Font.Gotham
+        lbl2.TextXAlignment = Enum.TextXAlignment.Left; lbl2.Parent = setP
+
+        local kb = Instance.new("TextButton")
+        kb.Size = UDim2.new(0,KBTN_W,0,26)
+        kb.Position = UDim2.new(0, KPAD+KLBL_W+10, 0, ry)
+        kb.BackgroundColor3 = Color3.fromRGB(20,20,40); kb.BackgroundTransparency = 0.2
+        kb.BorderSizePixel = 0; kb.Text = S.KB[bd.k]
+        kb.TextColor3 = Color3.fromRGB(0,200,255)
+        kb.TextSize = 12; kb.Font = Enum.Font.GothamBold; kb.Parent = setP
+        pcall(function() Instance.new("UICorner",kb).CornerRadius = UDim.new(0,5) end)
+
+        KB_BTNS[bd.k] = kb
+        local bk = bd.k
+        kb.MouseButton1Down:Connect(function()
+            ST._rb = {btn=kb, key=bk, old=S.KB[bk]}
+            kb.Text = "[ press key ]"
+            kb.TextColor3 = Color3.fromRGB(255,200,0)
+        end)
+    end
+    GUI.kbBtns = KB_BTNS
+
+    local wallRy = 36 + #binds*34 + 4
+    local wallLbl = Instance.new("TextLabel")
+    wallLbl.Size = UDim2.new(0,KLBL_W,0,26); wallLbl.Position = UDim2.new(0,KPAD,0,wallRy)
+    wallLbl.BackgroundTransparency = 1; wallLbl.Text = "Wall Check"
+    wallLbl.TextColor3 = Color3.fromRGB(190,190,200)
+    wallLbl.TextSize = 12; wallLbl.Font = Enum.Font.Gotham; wallLbl.TextXAlignment = Enum.TextXAlignment.Left
+    wallLbl.Parent = setP
+    local wallVal = Instance.new("TextLabel")
+    wallVal.Size = UDim2.new(0,KBTN_W,0,26); wallVal.Position = UDim2.new(0,KPAD+KLBL_W+10,0,wallRy)
+    wallVal.BackgroundColor3 = Color3.fromRGB(24,76,42); wallVal.BackgroundTransparency = 0.12
+    wallVal.BorderSizePixel = 0; wallVal.Text = "ALWAYS ON"
+    wallVal.TextColor3 = Color3.fromRGB(120,255,160); wallVal.TextSize = 11
+    wallVal.Font = Enum.Font.GothamBold; wallVal.Parent = setP
+    pcall(function() Instance.new("UICorner",wallVal).CornerRadius = UDim.new(0,5) end)
+
+    local fixY = wallRy + 30
+    local function fixedRow(label, keyName, ry)
+        local lbl2 = Instance.new("TextLabel")
+        lbl2.Size = UDim2.new(0,KLBL_W,0,26); lbl2.Position = UDim2.new(0,KPAD,0,ry)
+        lbl2.BackgroundTransparency = 1; lbl2.Text = label
+        lbl2.TextColor3 = Color3.fromRGB(160,160,170)
+        lbl2.TextSize = 11; lbl2.Font = Enum.Font.Gotham
+        lbl2.TextXAlignment = Enum.TextXAlignment.Left; lbl2.Parent = setP
+        local val = Instance.new("TextLabel")
+        val.Size = UDim2.new(0,KBTN_W,0,26)
+        val.Position = UDim2.new(0, KPAD+KLBL_W+10, 0, ry)
+        val.BackgroundColor3 = Color3.fromRGB(15,15,28); val.BackgroundTransparency = 0.2
+        val.BorderSizePixel = 0; val.Text = keyName
+        val.TextColor3 = Color3.fromRGB(120,120,140)
+        val.TextSize = 11; val.Font = Enum.Font.Gotham; val.Parent = setP
+        pcall(function() Instance.new("UICorner",val).CornerRadius = UDim.new(0,5) end)
+    end
+    fixedRow("Keys Panel", "F5  (fixed)",  fixY)
+    fixedRow("Hide Menu",  "F7  (fixed)",  fixY+30)
+
+    local tcY = fixY + 66
+    local tcLbl = Instance.new("TextLabel")
+    tcLbl.Size = UDim2.new(0,KLBL_W,0,26); tcLbl.Position = UDim2.new(0,KPAD,0,tcY)
+    tcLbl.BackgroundTransparency = 1; tcLbl.Text = "Team Check"
+    tcLbl.TextColor3 = Color3.fromRGB(190,190,200)
+    tcLbl.TextSize = 12; tcLbl.Font = Enum.Font.Gotham
+    tcLbl.TextXAlignment = Enum.TextXAlignment.Left; tcLbl.Parent = setP
+    local tcBtn = Instance.new("TextButton")
+    tcBtn.Size = UDim2.new(0,KBTN_W,0,26)
+    tcBtn.Position = UDim2.new(0, KPAD+KLBL_W+10, 0, tcY)
+    tcBtn.BackgroundColor3 = S.AM.tc and Color3.fromRGB(30,70,30) or Color3.fromRGB(70,30,30)
+    tcBtn.BackgroundTransparency = 0.2; tcBtn.BorderSizePixel = 0
+    tcBtn.Text = S.AM.tc and "ON" or "OFF"
+    tcBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    tcBtn.TextSize = 12; tcBtn.Font = Enum.Font.GothamBold; tcBtn.Parent = setP
+    pcall(function() Instance.new("UICorner",tcBtn).CornerRadius = UDim.new(0,5) end)
+    tcBtn.MouseButton1Down:Connect(function()
+        local nv = not S.AM.tc
+        S.AM.tc=nv; S.SL.tc=nv; S.TR.tc=nv; S.ES.tc=nv
+        tcBtn.BackgroundColor3 = nv and Color3.fromRGB(30,70,30) or Color3.fromRGB(70,30,30)
+        tcBtn.Text = nv and "ON" or "OFF"
+    end)
+
+    local slY    = tcY + 34
+    local SLDR_W = SET_W - KPAD*2
+
+    local fovLbl = Instance.new("TextLabel")
+    fovLbl.Size = UDim2.new(0,SLDR_W,0,20); fovLbl.Position = UDim2.new(0,KPAD,0,slY)
+    fovLbl.BackgroundTransparency = 1; fovLbl.Text = "FOV: " .. math.floor(S.FV.r)
+    fovLbl.TextColor3 = Color3.fromRGB(190,190,200)
+    fovLbl.TextSize = 12; fovLbl.Font = Enum.Font.Gotham
+    fovLbl.TextXAlignment = Enum.TextXAlignment.Left; fovLbl.Parent = setP
+
+    local sBg = Instance.new("Frame")
+    sBg.Size = UDim2.new(0,SLDR_W,0,6); sBg.Position = UDim2.new(0,KPAD,0,slY+22)
+    sBg.BackgroundColor3 = Color3.fromRGB(30,30,50); sBg.BorderSizePixel = 0; sBg.Parent = setP
+    pcall(function() Instance.new("UICorner",sBg).CornerRadius = UDim.new(0,3) end)
+
+    local sFill = Instance.new("Frame")
+    sFill.Size = UDim2.new(S.FV.r/500,0,1,0)
+    sFill.BackgroundColor3 = Color3.fromRGB(0,180,255)
+    sFill.BorderSizePixel = 0; sFill.Parent = sBg
+    pcall(function() Instance.new("UICorner",sFill).CornerRadius = UDim.new(0,3) end)
+
+    local sBtn = Instance.new("TextButton")
+    sBtn.Size = UDim2.new(0,16,0,16); sBtn.Position = UDim2.new(S.FV.r/500,-8,0,-5)
+    sBtn.BackgroundColor3 = Color3.fromRGB(0,200,255)
+    sBtn.BorderSizePixel = 0; sBtn.Text = ""; sBtn.Parent = sBg
+    pcall(function() Instance.new("UICorner",sBtn).CornerRadius = UDim.new(0,8) end)
+
+    local cY2 = slY + 34
+    local cBtn = Instance.new("TextButton")
+    cBtn.Size = UDim2.new(0,130,0,24); cBtn.Position = UDim2.new(0,KPAD,0,cY2)
+    cBtn.BackgroundColor3 = S.FV.c; cBtn.BackgroundTransparency = 0.08; cBtn.BorderSizePixel = 0
+    cBtn.Text = "FOV COLOR"; cBtn.TextColor3 = Color3.fromRGB(0,0,0)
+    cBtn.TextSize = 10; cBtn.Font = Enum.Font.GothamBold; cBtn.Parent = setP
+    pcall(function() Instance.new("UICorner",cBtn).CornerRadius = UDim.new(0,6) end)
+    cBtn.MouseEnter:Connect(function() tween(cBtn, TweenInfo.new(0.10), {BackgroundTransparency = 0}) end)
+    cBtn.MouseLeave:Connect(function() tween(cBtn, TweenInfo.new(0.14), {BackgroundTransparency = 0.08}) end)
+    local cols = {
+        Color3.fromRGB(255,255,255), Color3.fromRGB(0,200,255),
+        Color3.fromRGB(255,60,60),   Color3.fromRGB(60,255,60),
+        Color3.fromRGB(255,200,0),   Color3.fromRGB(200,0,255),
+    }
+    local ci = 1
+    cBtn.MouseButton1Down:Connect(function()
+        ci = ci % #cols + 1; S.FV.c = cols[ci]
+        cBtn.BackgroundColor3 = S.FV.c
+        if FC then FC.Color = S.FV.c end
+    end)
+
+    local clBtn = Instance.new("TextButton")
+    clBtn.Size = UDim2.new(0,80,0,24)
+    clBtn.Position = UDim2.new(0.5,-40,0,setP.Size.Y.Offset-28)
+    clBtn.BackgroundColor3 = Color3.fromRGB(60,20,20); clBtn.BackgroundTransparency = 0.2
+    clBtn.BorderSizePixel = 0; clBtn.Text = "CLOSE"
+    clBtn.TextColor3 = Color3.fromRGB(255,140,140)
+    clBtn.TextSize = 11; clBtn.Font = Enum.Font.GothamBold; clBtn.Parent = setP
+    pcall(function() Instance.new("UICorner",clBtn).CornerRadius = UDim.new(0,5) end)
+    clBtn.MouseButton1Down:Connect(function() toggleKeysPanel() end)
+    setBtn.MouseButton1Down:Connect(function()  toggleKeysPanel() end)
+
+    SI = {
+        sBg=sBg, sBtn=sBtn, sFill=sFill, fovLbl=fovLbl,
+        dragging=false, pointerX=nil,
+    }
+
+    -- The title bars are the dedicated drag handles, so buttons and sliders
+    -- inside the panels remain fully clickable.
+    makeDraggable(main, titleLbl, "main")
+    makeDraggable(igPanel, igTitle, "ignore")
+    makeDraggable(setP, spTitle, "settings")
+
+    -- Track slider positions from the InputObjects themselves. This avoids
+    -- polling GetMouseLocation every RenderStepped and supports touch input.
+    hook(sBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            SI.dragging = true
+            SI.pointerX = input.Position.X
+        end
+    end))
+
+    -- [PERF-7] FOV slider pointer-X update is now handled inside _sharedDragMove
+    -- via the SI table.  No separate UI.InputChanged connection needed here.
+end
+
+-- ============================================================
+-- INPUT
+-- ============================================================
+local okIn, errIn = pcall(function()
+    hook(UI.InputBegan:Connect(function(inp, gpd)
+        -- [COMPAT-7] GetFocusedTextBox() pcall-guarded.
+        -- On older Roblox client builds (some Synapse X / Krnl targets),
+        -- this call can throw and permanently kill the input handler callback.
+        -- If the call errors, assume no textbox is focused (safe default).
+        local okFtb, ftbResult = pcall(function() return UI:GetFocusedTextBox() end)
+        if okFtb and ftbResult then return end
+
+        if ST._rb then
+            if isMouseBtn(inp) then
+                if inp.UserInputType == Enum.UserInputType.MouseButton2 then
+                    local nn = "MouseButton2"
+                    S.KB[ST._rb.key] = nn
+                    ST._rb.btn.Text = nn; ST._rb.btn.TextColor3 = Color3.fromRGB(0,200,255)
+                    if GUI.kbBtns and GUI.kbBtns[ST._rb.key] then
+                        GUI.kbBtns[ST._rb.key].Text = nn
+                    end
+                    ST._rb = nil
+                end
+                return
+            end
+            if inp.KeyCode == Enum.KeyCode.F5 or inp.KeyCode == Enum.KeyCode.F7 then
+                ST._rb.btn.Text = ST._rb.old; ST._rb.btn.TextColor3 = Color3.fromRGB(0,200,255)
+                ST._rb = nil; return
+            end
+            if inp.KeyCode == Enum.KeyCode.Escape then
+                ST._rb.btn.Text = ST._rb.old; ST._rb.btn.TextColor3 = Color3.fromRGB(0,200,255)
+                ST._rb = nil; return
+            end
+            local nn = nil
+            if inp.KeyCode ~= Enum.KeyCode.Unknown then
+                nn = EN[inp.KeyCode] or tostring(inp.KeyCode):gsub("Enum.KeyCode.","")
+            elseif inp.UserInputType ~= Enum.UserInputType.None then
+                nn = EN[inp.UserInputType] or tostring(inp.UserInputType):gsub("Enum.UserInputType.","")
+            end
+            if nn then
+                S.KB[ST._rb.key] = nn
+                ST._rb.btn.Text = nn; ST._rb.btn.TextColor3 = Color3.fromRGB(0,200,255)
+                if GUI.kbBtns and GUI.kbBtns[ST._rb.key] then
+                    GUI.kbBtns[ST._rb.key].Text = nn
+                end
+                ST._rb = nil
+            end
+            return
+        end
+
+        if inp.UserInputType == Enum.UserInputType.MouseButton2 then
+            -- Always record RMB state immediately. HOLD AIM itself is evaluated
+            -- from the real mouse state in doAimbot(), so missed InputEnded
+            -- events cannot leave the aim state permanently stuck.
+            ST.arm   = true
+            ST.saArm = true
+            if holdToAimEnabled then
+                clearHeadCache()
+                ST.holdReleased = false
+            end
+        end
+
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            ST.saToken = ST.saToken + 1
+            ST.saArm   = true
+        end
+
+        if inp.KeyCode == Enum.KeyCode.F7 then
+            if GUI.main then
+                local nv = not GUI.main.Visible
+                GUI.main.Visible = nv; ST.hid = not nv
+                if GUI.restoreBar then GUI.restoreBar.Visible = not nv end
+                layoutRightDock()
+                if not nv then
+                    if GUI.igPanel  then GUI.igPanel.Visible  = false end
+                    if GUI.setPanel then GUI.setPanel.Visible = false end
+                    ST.mn = false; ST.igOpen = false
+                    SI.dragging = false; SI.pointerX = nil; ST._rb = nil
+                end
+            end
+            return
+        end
+
+        -- F5 toggles HOLD AIM ON/OFF.
+        -- RMB remains the actual hold-to-aim activation key.
+        if inp.KeyCode == Enum.KeyCode.F5 then
+            holdToAimEnabled = not holdToAimEnabled
+            if not holdToAimEnabled then
+                S.AM.on = false
+                ST.arm = false; ST.saArm = false
+                ST.htArm = false
+                ST.holdReleased = false
+                if ST.tgpl ~= nil then flushTarget() end
+            else
+                clearHeadCache()
+            end
+            updBtn("HOLD AIM", holdToAimEnabled, C_GRN, C_ORG)
+            return
+        end
+
+        if gpd then return end
+
+        if mk(inp,"am") then
+            if not holdToAimEnabled then
+                S.AM.on = not S.AM.on
+                if not S.AM.on and ST.tgpl ~= nil then flushTarget() end
+                updBtn("AIMBOT", S.AM.on, C_GRN, C_RED)
+            end
+        end
+        if mk(inp,"es") then
+            S.ES.on = not S.ES.on
+            if not S.ES.on then destroyAllInstanceESP() end
+            updBtn("ESP",        S.ES.on, C_GRN, C_RED)
+        end
+        if mk(inp,"sl") then
+            S.SL.on = not S.SL.on
+            updBtn("SILENT",     S.SL.on, C_GRN, C_ORG)
+        end
+        if mk(inp,"tr") then
+            S.TR.on = not S.TR.on
+            updBtn("TRIGGER",    S.TR.on, C_GRN, C_RED)
+        end
+        -- Wall Check is intentionally not bindable/toggleable; it is always ON.
+    end))
+
+    hook(UI.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton2 then
+            ST.arm   = false
+            ST.saArm = false
+            if holdToAimEnabled then
+                ST.holdReleased = true
+                S.AM.on = false
+                ST.htArm = false
+            end
+        end
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            local token = ST.saToken
+            tsp(function()
+                tw(0.05)
+                if ST.saToken == token then ST.saArm = false end
+            end)
+            SI.dragging = false
+            SI.pointerX = nil
+        end
+        if inp.UserInputType == Enum.UserInputType.Touch then
+            SI.dragging = false
+            SI.pointerX = nil
+        end
+    end))
+end)
+if not okIn then warn("[OPSYX] Input init failed: " .. tostring(errIn)) end
+
+-- ============================================================
+-- MOBILE UI
+-- ============================================================
+if MOB then
+    pcall(function()
+        local tn = rs(12)
+        local tg = Instance.new("ScreenGui"); tg.Name=tn; tg.ResetOnSpawn=false
+        -- [COMPAT-6] Same 10-second timeout as desktop GUI.
+        -- Same timeout/nil-return fix as the desktop GUI.
+        local guiParent = nil
+        local ok = pcall(function()
+            guiParent = ME:WaitForChild("PlayerGui", 10)
+        end)
+
+        if ok and guiParent then
+            local okParent = pcall(function()
+                tg.Parent = guiParent
+            end)
+            if not okParent or tg.Parent ~= guiParent then
+                guiParent = nil
+            end
+        end
+
+        if not guiParent then
+            local okFallback = pcall(function()
+                tg.Parent = CG
+                guiParent = tg.Parent
+            end)
+            if not okFallback or not guiParent then
+                pcall(function() tg:Destroy() end)
+                return
+            end
+        end
+
+        if not ST.ourGuis then ST.ourGuis = {} end
+        table.insert(ST.ourGuis, tg)
+
+        local mPanel = Instance.new("Frame")
+        mPanel.Name = rs(10)
+        mPanel.Size = UDim2.new(0,160,0,430)
+        mPanel.AnchorPoint = Vector2.new(1,0.5)
+        mPanel.Position = UDim2.new(1,-8,0.5,0)
+        mPanel.BackgroundColor3 = UI_BG
+        mPanel.BackgroundTransparency = 0.1
+        mPanel.BorderSizePixel = 0
+        mPanel.Active = true
+        mPanel.Parent = tg
+        GUI.mobilePanel = mPanel
+        pcall(function()
+            Instance.new("UICorner",mPanel).CornerRadius = UDim.new(0,10)
+            local st = Instance.new("UIStroke",mPanel)
+            st.Color = Color3.fromRGB(0,160,255); st.Thickness = 1.2
+        end)
+
+        local mTitle = Instance.new("TextLabel")
+        mTitle.Size = UDim2.new(1,0,0,22); mTitle.BackgroundTransparency = 1
+        mTitle.Text = "JM's Script"
+        mTitle.TextColor3 = Color3.fromRGB(0,200,255)
+        mTitle.TextSize = 11; mTitle.Font = Enum.Font.GothamBold
+        mTitle.Active = true; mTitle.Parent = mPanel
+
+        local mAccent = Instance.new("Frame")
+        mAccent.Size = UDim2.new(1,0,0,1); mAccent.Position = UDim2.new(0,0,0,22)
+        mAccent.BackgroundColor3 = Color3.fromRGB(0,180,255)
+        mAccent.BorderSizePixel = 0; mAccent.Parent = mPanel
+
+        local mY = 26; local mGAP = 38; local BTN_H = 34
+
+        local function mToggle(lbl, offC, onC, getter, setter)
+            local row = Instance.new("Frame")
+            row.Size = UDim2.new(1,-8,0,BTN_H); row.Position = UDim2.new(0,4,0,mY)
+            row.BackgroundColor3 = Color3.fromRGB(18,18,30)
+            row.BackgroundTransparency = 0.25; row.BorderSizePixel = 0; row.Parent = mPanel
+            pcall(function() Instance.new("UICorner",row).CornerRadius = UDim.new(0,7) end)
+
+            local nameLbl = Instance.new("TextLabel")
+            nameLbl.Size = UDim2.new(0.54,0,1,0); nameLbl.BackgroundTransparency = 1
+            nameLbl.Text = lbl; nameLbl.TextColor3 = Color3.fromRGB(210,210,220)
+            nameLbl.TextSize = 11; nameLbl.Font = Enum.Font.GothamBold
+            nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+            nameLbl.Position = UDim2.new(0,6,0,0); nameLbl.Parent = row
+
+            local pill = Instance.new("TextButton")
+            pill.Size = UDim2.new(0,52,0,22); pill.Position = UDim2.new(1,-56,0.5,-11)
+            pill.BackgroundColor3 = getter() and onC or offC; pill.BorderSizePixel = 0
+            pill.Text = getter() and "ON" or "OFF"
+            pill.TextColor3 = Color3.fromRGB(255,255,255)
+            pill.TextSize = 11; pill.Font = Enum.Font.GothamBold; pill.Parent = row
+            pcall(function() Instance.new("UICorner",pill).CornerRadius = UDim.new(1,0) end)
+
+            local function refresh()
+                local ns = getter()
+                pill.BackgroundColor3 = ns and onC or offC
+                pill.Text = ns and "ON" or "OFF"
+            end
+            pill.MouseButton1Down:Connect(function() setter(); refresh() end)
+            mY = mY + mGAP
+        end
+
+        mToggle("AIMBOT", C_RED, C_GRN,
+            function() return S.AM.on end,
+            function()
+                if holdToAimEnabled then return end
+                S.AM.on=not S.AM.on
+                if not S.AM.on and ST.tgpl~=nil then flushTarget() end
+            end)
+
+        mToggle("ESP", C_RED, C_GRN,
+            function() return S.ES.on end,
+            function() S.ES.on=not S.ES.on; if not S.ES.on then destroyAllInstanceESP() end end)
+
+        mToggle("SILENT", C_ORG, C_GRN,
+            function() return S.SL.on end,
+            function() S.SL.on=not S.SL.on; if S.SL.on then ST.saArm=true end end)
+
+        mToggle("TRIGGER", C_RED, C_GRN,
+            function() return S.TR.on end,
+            function() S.TR.on=not S.TR.on; ST.mobArm=S.TR.on end)
+
+        mToggle("FOV", C_BLU, C_GRN,
+            function() return S.FV.on end,
+            function() S.FV.on=not S.FV.on end)
+
+        mToggle("THIRD PERSON", C_BLU, C_GRN,
+            function() return S.TP.on end,
+            function()
+                S.TP.on = not S.TP.on
+                setThirdPerson(S.TP.on)
+            end)
+
+        mToggle("WALL", C_ORG, C_GRN,
+            function() return true end,
+            function() S.AM.wc=true; S.SL.wc=true; S.TR.wc=true end)
+
+        mToggle("HOLD AIM", C_ORG, C_GRN,
+            function() return holdToAimEnabled end,
+            function()
+                holdToAimEnabled = not holdToAimEnabled
+                if not holdToAimEnabled then
+                    S.AM.on=false; ST.arm=false; ST.saArm=false
+                    ST.htArm=false; ST.holdReleased=false
+                    if ST.tgpl ~= nil then flushTarget() end
+                else
+                    clearHeadCache()
+                end
+            end)
+
+        -- Reuse the same guarded mouse/touch drag implementation for the
+        -- mobile panel.  layoutRightDock() will preserve this position.
+        makeDraggable(mPanel, mTitle, "mobile")
+    end)
+end
+
+-- ============================================================
+-- MAIN LOOP
+-- ============================================================
+local okCg, errCg = pcall(cg)
+if not okCg then warn("[OPSYX] GUI init error: " .. tostring(errCg)) end
+
+-- Keep third-person active after respawn/camera replacement.
+hook(ME.CharacterAdded:Connect(function()
+    if S.TP.on then
+        tw(0.15)
+        enforceThirdPerson()
+    end
+end))
+
+hook(WS:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    if S.TP.on then
+        tw(0.05)
+        enforceThirdPerson()
+    end
+end))
+
+-- ============================================================
+-- RESPONSIVE RIGHT-SIDE UI DOCK
+-- Keeps every desktop panel inside the right side of the screen.
+-- Wide screens: panels sit horizontally from the right edge.
+-- Narrow screens: panels stack vertically, still right-aligned.
+-- This is recalculated whenever the viewport/UIScale changes.
+-- ============================================================
+layoutRightDock = function(force)
+    pcall(function()
+        local cam = CAM()
+        if not cam then return end
+
+        local vw = cam.ViewportSize.X
+        local vh = cam.ViewportSize.Y
+        if vw <= 0 or vh <= 0 then return end
+
+        local scale = GUI.uiScale and GUI.uiScale.Scale or 1
+        if scale <= 0 then scale = 1 end
+
+        if not force and not layoutCacheChanged(vw, vh, scale) then
+            return
+        end
+
+        LAYOUT_CACHE.vw = vw
+        LAYOUT_CACHE.vh = vh
+        LAYOUT_CACHE.scale = scale
+        LAYOUT_CACHE.mainVisible = GUI.main and GUI.main.Visible or false
+        LAYOUT_CACHE.ignoreVisible = GUI.igPanel and GUI.igPanel.Visible or false
+        LAYOUT_CACHE.settingsVisible = GUI.setPanel and GUI.setPanel.Visible or false
+        LAYOUT_CACHE.restoreVisible = GUI.restoreBar and GUI.restoreBar.Visible or false
+        LAYOUT_CACHE.mobileExists = GUI.mobilePanel ~= nil
+        LAYOUT_CACHE.mainDragged = ST.uiPositions.main and ST.uiPositions.main.dragged or false
+        LAYOUT_CACHE.ignoreDragged = ST.uiPositions.ignore and ST.uiPositions.ignore.dragged or false
+        LAYOUT_CACHE.settingsDragged = ST.uiPositions.settings and ST.uiPositions.settings.dragged or false
+        LAYOUT_CACHE.mobileDragged = ST.uiPositions.mobile and ST.uiPositions.mobile.dragged or false
+        LAYOUT_CACHE.restoreDragged = ST.restoreBarDragged == true
+
+        local lw, lh = vw / scale, vh / scale
+
+        -- Responsive edge margin.  The UI remains visually close to the
+        -- physical right edge without ever using a negative/off-screen offset.
+        local rightPx = cl(vw * 0.010, 6, 14)
+        local topPx   = cl(vh * 0.055, 8, 70)
+        local gapPx   = cl(math.min(vw, vh) * 0.010, 8, 18)
+        local bottomPx = cl(vh * 0.018, 6, 14)
+        local right = rightPx / scale
+        local top = topPx / scale
+        local gap = gapPx / scale
+        local bottom = bottomPx / scale
+
+        local main = GUI.main
+        local ig = GUI.igPanel
+        local setp = GUI.setPanel
+        if not main then return end
+
+        main.AnchorPoint = Vector2.new(1, 0)
+        if ig then ig.AnchorPoint = Vector2.new(1, 0) end
+        if setp then setp.AnchorPoint = Vector2.new(1, 0) end
+
+        local mw = math.max(1, main.Size.X.Offset)
+        local iw = ig and math.max(1, ig.Size.X.Offset) or 0
+        local sw = setp and math.max(1, setp.Size.X.Offset) or 0
+        local mh = math.max(1, main.Size.Y.Offset)
+        local ih = ig and math.max(1, ig.Size.Y.Offset) or 0
+        local sh = setp and math.max(1, setp.Size.Y.Offset) or 0
+
+        local showI = ig and ig.Visible or false
+        local showS = setp and setp.Visible or false
+
+        local availableW = math.max(1, lw - right - gap)
+        local neededW = mw
+        if showI then neededW = neededW + gap + iw end
+        if showS then neededW = neededW + gap + sw end
+
+        -- Desktop/tablet: keep all open panels on one right-aligned row when
+        -- they fit.  Narrow screens: stack vertically, still right-aligned.
+        --
+        -- A panel that has been manually dragged is excluded from this
+        -- automatic placement and gets its saved position instead.
+        local mainDragged = applyDraggedPanelPosition(main, "main")
+        local igDragged   = ig and applyDraggedPanelPosition(ig, "ignore") or false
+        local setDragged  = setp and applyDraggedPanelPosition(setp, "settings") or false
+
+        if neededW <= availableW then
+            local cursor = right
+
+            if not mainDragged then
+                main.AnchorPoint = Vector2.new(1, 0)
+                main.Position = UDim2.new(1, -cursor, 0, top)
+            end
+            cursor = cursor + mw + gap
+
+            if showI then
+                if not igDragged then
+                    ig.AnchorPoint = Vector2.new(1, 0)
+                    ig.Position = UDim2.new(1, -cursor, 0, top)
+                end
+                cursor = cursor + iw + gap
+            elseif ig and not igDragged then
+                ig.AnchorPoint = Vector2.new(1, 0)
+                ig.Position = UDim2.new(1, -(right + mw + gap), 0, top)
+            end
+
+            if showS then
+                if not setDragged then
+                    setp.AnchorPoint = Vector2.new(1, 0)
+                    setp.Position = UDim2.new(1, -cursor, 0, top)
+                end
+            elseif setp and not setDragged then
+                local extra = showI and (iw + gap) or 0
+                setp.AnchorPoint = Vector2.new(1, 0)
+                setp.Position = UDim2.new(1, -(right + mw + gap + extra), 0, top)
+            end
+        else
+            local y = top
+            local maxY = math.max(top, lh - bottom)
+
+            -- Preserve manually dragged panels.  Automatic stacking still
+            -- applies to panels that have never been moved by the user.
+            if not mainDragged then
+                local mainY = cl(y, top, math.max(top, maxY - mh))
+                main.AnchorPoint = Vector2.new(1, 0)
+                main.Position = UDim2.new(1, -right, 0, mainY)
+                y = mainY + mh + gap
+            else
+                y = top + mh + gap
+            end
+
+            if showI then
+                if not igDragged then
+                    local iy = cl(y, top, math.max(top, maxY - ih))
+                    ig.AnchorPoint = Vector2.new(1, 0)
+                    ig.Position = UDim2.new(1, -right, 0, iy)
+                    y = iy + ih + gap
+                end
+            elseif ig and not igDragged then
+                ig.AnchorPoint = Vector2.new(1, 0)
+                ig.Position = UDim2.new(1, -right, 0, top)
+            end
+
+            if showS then
+                if not setDragged then
+                    local sy = cl(y, top, math.max(top, maxY - sh))
+                    setp.AnchorPoint = Vector2.new(1, 0)
+                    setp.Position = UDim2.new(1, -right, 0, sy)
+                end
+            elseif setp and not setDragged then
+                setp.AnchorPoint = Vector2.new(1, 0)
+                setp.Position = UDim2.new(1, -right, 0, top)
+            end
+        end
+
+        -- Restore bar stays right-aligned until the user actually drags it.
+        -- Previously this block reset the position every RenderStepped, which
+        -- made the drag implementation effectively non-functional.
+        if GUI.restoreBar then
+            if ST.restoreBarDragged
+                and ST.restoreBarX ~= nil and ST.restoreBarY ~= nil then
+                local rbW = math.max(1, GUI.restoreBar.Size.X.Offset)
+                local rbH = math.max(1, GUI.restoreBar.Size.Y.Offset)
+                local rbX = cl(ST.restoreBarX, 0, math.max(0, lw - rbW))
+                local rbY = cl(ST.restoreBarY, 0, math.max(0, lh - rbH))
+                ST.restoreBarX = rbX
+                ST.restoreBarY = rbY
+                GUI.restoreBar.AnchorPoint = Vector2.new(0, 0)
+                GUI.restoreBar.Position = UDim2.fromOffset(
+                    math.floor(rbX + 0.5), math.floor(rbY + 0.5)
+                )
+            else
+                GUI.restoreBar.AnchorPoint = Vector2.new(1, 0)
+                GUI.restoreBar.Position = UDim2.new(1, -right, 0, top * 0.14)
+            end
+        end
+
+        -- Mobile quick panel follows the exact same right-edge rule and is
+        -- vertically centered only when the viewport has enough height.
+        -- Once dragged, its saved top-left position takes precedence.
+        if GUI.mobilePanel then
+            local mp = GUI.mobilePanel
+            local dragged = applyDraggedPanelPosition(mp, "mobile")
+            local mpW = mp.Size.X.Offset
+            local mpH = mp.Size.Y.Offset
+            local safeW = math.max(1, lw - right)
+
+            if mpW > safeW and not dragged then
+                local newW = math.max(120, math.floor(safeW * 0.92))
+                mp.Size = UDim2.new(0, newW, 0, mpH)
+                mpW = newW
+            end
+
+            if not dragged then
+                mp.AnchorPoint = Vector2.new(1, 0.5)
+                local halfH = (mp.Size.Y.Offset * scale) * 0.5
+                local centerYpx = cl(vh * 0.5, halfH + bottomPx, vh - halfH - bottomPx)
+                mp.Position = UDim2.new(1, -rightPx, 0, centerYpx)
+            end
+        end
+    end)
+end
+
+layoutRightDock()
+
+local conn
+local FOV_UI_DT  = MOB and (1/30) or (1/45)
+local LOCK_UI_DT = MOB and (1/20) or (1/30)
+local fovUiT  = 0
+local lockUiT = 0
+
+local okLoop, errLoop = pcall(function()
+    conn = RS.RenderStepped:Connect(function(dt)
+        if not ST.ld then conn:Disconnect(); return end
+        ST.fr = (ST.fr or 0) + 1
+
+        pcall(function()
+            if GUI.uiScale then
+                local cam = CAM()
+                if cam then
+                    local vw    = cam.ViewportSize.X
+                    local scale = cl(vw / 1920, 0.72, 1.35)
+                    if MOB then scale = cl(vw / 1280, 0.62, 1.0) end
+                    scale = math.floor(scale * 100 + 0.5) / 100
+                    if scale ~= LAST_SCALE then
+                        LAST_SCALE = scale; GUI.uiScale.Scale = scale
+                    end
+                    -- Re-layout only when viewport/UI state changes. The layout
+                    -- function keeps the same responsive/clamping rules while
+                    -- skipping redundant per-frame property assignments.
+                    layoutRightDock(false)
+                end
+            end
+        end)
+
+        -- Wall Check is enforced at startup and on CharacterAdded.
+        -- Per-frame enforcement removed: forceWallCheck() is a no-op write
+        -- every frame since nothing in the script sets wc to false.
+        -- [PERF-3] Removed unconditional per-frame forceWallCheck() call.
+        if S.TP.on and not TP_STATE.applied then
+            enforceThirdPerson()
+        end
+
+        pcall(function()
+            FPS_COUNT = FPS_COUNT + 1
+            local now     = os.clock()
+            local elapsed = now - FPS_TIMER
+            if elapsed >= FPS_INTERVAL then
+                FPS_SHOWN = math.floor(FPS_COUNT / elapsed + 0.5)
+                FPS_COUNT = 0; FPS_TIMER = now
+                local fpsStr = "JM's Script  |  " .. FPS_SHOWN .. " FPS"
+                -- Keep the FPS/restore bar color fixed. FPS should change only
+                -- the number, never the visual theme.
+                if GUI.titleLabel then
+                    GUI.titleLabel.Text = fpsStr
+                    GUI.titleLabel.TextColor3 = UI_ACCENT
+                end
+                if GUI.restoreBar and GUI.restoreBar.Visible then
+                    GUI.restoreBar.Text = "OPSYX | " .. FPS_SHOWN .. " FPS"
+                    GUI.restoreBar.TextColor3 = UI_ACCENT
+                end
+            end
+        end)
+
+        pcall(function()
+            if not FC then return end
+            local now  = os.clock()
+            local show = S.FV.on
+            if show and now - fovUiT >= FOV_UI_DT then
+                fovUiT = now
+                local fovPos
+                if haveMouse() then
+                    local mp = UI:GetMouseLocation()
+                    fovPos = Vector2.new(mp.X, mp.Y)
+                else
+                    local cam = CAM()
+                    if not cam then return end
+                    fovPos = Vector2.new(
+                        cam.ViewportSize.X * 0.5,
+                        cam.ViewportSize.Y * 0.5
+                    )
+                end
+                FC.Position     = fovPos
+                FC.Radius       = S.FV.r
+                FC.Color        = S.FV.c
+                FC.Thickness    = cl(S.FV.r * 0.012, 1.2, 2.5)
+                -- [PERF-6] NumSides is set once at init (64); no per-tick write needed.
+                FC.Filled       = S.FV.fl
+                FC.Transparency = S.FV.tr
+            end
+            if FC.Visible ~= show then FC.Visible = show end
+        end)
+
+        pcall(function()
+            if not FTL then return end
+            local show = S.AM.on and S.FV.on and ST.tgpl ~= nil
+            if show then
+                local now = os.clock()
+                if now - lockUiT >= LOCK_UI_DT then
+                    lockUiT = now
+                    local mp = UI:GetMouseLocation()
+                    FTL.Position = Vector2.new(mp.X, mp.Y + S.FV.r + 18)
+                    local pn = ST.tgPartName or "?"
+                    FTL.Text  = ST.tgpl.Name .. "  [" .. pn .. "]"
+                    FTL.Color = pn == "Head" and Color3.fromRGB(80,255,80)
+                        or pn == "UpperTorso" and Color3.fromRGB(255,220,60)
+                        or Color3.fromRGB(255,140,40)
+                end
+            end
+            if FTL.Visible ~= show then FTL.Visible = show end
+        end)
+
+        pcall(function()
+            if SI.dragging and SI.sBg and SI.pointerX ~= nil then
+                local mx2 = SI.pointerX
+                local ax  = SI.sBg.AbsolutePosition.X
+                local aw  = SI.sBg.AbsoluteSize.X
+                if aw <= 0 then return end
+                local pc = cl((mx2-ax)/aw, 0, 1)
+                local r  = math.floor(pc * 500)
+                S.FV.r   = r
+                SI.sBtn.Position = UDim2.new(pc,-8,0,-5)
+                SI.sFill.Size    = UDim2.new(pc,0,1,0)
+                SI.fovLbl.Text   = "FOV: " .. r
+                if FC then FC.Radius = r end
+            end
+        end)
+
+        pcall(function()
+            if ST.igOpen and GUI.igPanel and GUI.igPanel.Visible then
+                local now = os.clock()
+                if now - ST.igLastRefresh >= 0.25 then
+                    ST.igLastRefresh = now; pcall(refreshIgnorePanel)
+                end
+            end
+        end)
+
+        local nowT    = os.clock()
+        local espBase = (FPS_SHOWN > 0 and FPS_SHOWN < 30) and 0.20 or 0.10
+
+        if nowT >= (ST.espNext or 0) then
+            ST.espT    = nowT
+            ST.espNext = nowT + espBase + RNG:NextNumber(0, 0.08)
+            if ST.stealth and nowT - ST.killT > 20 then ST.stealth = false end
+
+            -- [PERF-9] Periodic LOSC stale-entry sweep.
+            -- LOSC entries expire after 0.05s for correctness but are not
+            -- proactively evicted. On long sessions this table grows with
+            -- unreachable entries, adding GC pressure on low-RAM systems.
+            -- Sweep every ~10s: remove entries older than 5s.
+            local LOSC_SWEEP_INTERVAL = 10
+            if not ST._loscSweepT then ST._loscSweepT = nowT end
+            if nowT - ST._loscSweepT >= LOSC_SWEEP_INTERVAL then
+                ST._loscSweepT = nowT
+                local staleAge = 5
+                local staleKeys = {}; local sn = 0
+                for part, entry in pairs(LOSC) do
+                    if nowT - entry.t > staleAge then
+                        sn = sn + 1; staleKeys[sn] = part
+                    end
+                end
+                for i = 1, sn do LOSC[staleKeys[i]] = nil end
+            end
+            pcall(function()
+                local charsChanged = false
+                local changedChars = {}
+                local rngL = (ST.stealth and S.AC.cl) and S.ES.sd or S.ES.md
+                for _, pl in ipairs(Players:GetPlayers()) do
+                    if pl ~= ME then
+                        local c    = pl.Character
+                        local prev = CHARS[pl]
+                        if prev ~= c then
+                            if prev then
+                                PART_CACHE_ROOT[prev] = nil
+                                PART_CACHE_HEAD[prev] = nil
+                                HUM_CACHE[prev]        = nil  -- [PERF-5]
+                                changedChars[#changedChars+1] = prev
+                            end
+                            CHARS[pl] = c; charsChanged = true
+                        end
+                        if not S.ES.on then
+                            if IESP[pl] then destroyInstanceESP(pl) end
+                        else
+                            if c and al(c) then
+                                local cam = CAM(); local rt = fr(c)
+                                if cam and rt and
+                                (cam.CFrame.Position-rt.Position).Magnitude <= rngL then
+                                    local esp = IESP[pl]
+                                    if esp == nil then
+                                        createInstanceESP(pl)
+                                    elseif esp.fail then
+                                        if nowT-esp.fail > 2 then createInstanceESP(pl) end
+                                    elseif esp.highlight then
+                                        if esp.highlight.Parent==nil or esp.billboard.Parent==nil then
+                                            IESP[pl] = nil
+                                            local k = nowT
+                                            if k-ST.killT<8 then ST.kills=ST.kills+1
+                                            else ST.kills=1 end
+                                            ST.killT = k
+                                            if ST.kills>=3 then ST.stealth=true; ST.kills=0 end
+                                            createInstanceESP(pl)
+                                        else
+                                            local enemy = isEnemy(pl, S.ES.tc)
+                                            esp.highlight.FillColor    = enemy and S.ES.ce or S.ES.ct
+                                            esp.highlight.OutlineColor = enemy
+                                                and Color3.fromRGB(255,80,80)
+                                                or  Color3.fromRGB(80,120,255)
+                                            if esp.txt2 then
+                                                -- [PERF-5] Reuse cached Humanoid.
+                                                local hum = HUM_CACHE[c]
+                                                if hum == nil or hum.Parent == nil then
+                                                    hum = c:FindFirstChildOfClass("Humanoid")
+                                                    if hum then HUM_CACHE[c] = hum end
+                                                end
+                                                local dd  = safeFloor((cam.CFrame.Position-rt.Position).Magnitude,0)
+                                                local hp  = "?"
+                                                local hpRatio = -1
+                                                if hum then
+                                                    local hv = hum.Health
+                                                    if hv==hv and hv>=0 then
+                                                        hp = tostring(safeFloor(hv,0))
+                                                        local mx = hum.MaxHealth
+                                                        if mx and mx > 0 then
+                                                            -- Round to 1% steps to gate color recomputation.
+                                                            hpRatio = math.floor(cl(hv/mx,0,1)*100+0.5)
+                                                        end
+                                                    end
+                                                end
+                                                local newText = hp.." HP | "..dd.."m"
+                                                if esp.txt2.Text ~= newText then
+                                                    esp.txt2.Text = newText
+                                                end
+                                                -- [PERF-6] Only recompute Color3 when HP ratio changes.
+                                                if hpRatio ~= esp._hpRatio then
+                                                    esp._hpRatio = hpRatio
+                                                    local col = hpColor(hum)
+                                                    esp._hpCol  = col
+                                                    esp.txt2.TextColor3 = col
+                                                end
+                                            end
+                                            if S.AC.nm and nowT-esp.ren > S.AC.rg then renameESP(pl) end
+                                        end
+                                    end
+                                else
+                                    if IESP[pl] then destroyInstanceESP(pl) end
+                                end
+                            else
+                                if IESP[pl] then destroyInstanceESP(pl) end
+                            end
+                        end
+                    end
+                end
+                if charsChanged then
+                    for i = 1, #changedChars do clearLOSCForChar(changedChars[i]) end
+                end
+            end)
+        end
+
+        pcall(doAimbot, dt)
+        pcall(sa, dt)
+        pcall(tb)
+    end)
+end)
+
+if conn then hook(conn) end
+if not okLoop then warn("[OPSYX] Main loop failed: " .. tostring(errLoop)) end
+
+-- ============================================================
+-- EVENTS
+-- ============================================================
+local function oca(plr)
+    if plr == ME then return end
+    pcall(function()
+        if CHAR_CONNS[plr] then
+            pcall(function() CHAR_CONNS[plr]:Disconnect() end)
+            CHAR_CONNS[plr] = nil
+        end
+        CHAR_CONNS[plr] = plr.CharacterAdded:Connect(function()
+            local oldChar = CHARS[plr]
+            tsp(function()
+                tw(0.5)
+                if plr.Parent ~= Players then return end
+                destroyInstanceESP(plr)
+                LP[plr]    = nil
+                CHARS[plr] = nil
+                if oldChar then
+                    PART_CACHE_ROOT[oldChar] = nil
+                    PART_CACHE_HEAD[oldChar] = nil
+                    HUM_CACHE[oldChar]        = nil  -- [PERF-5]
+                    clearLOSCForChar(oldChar)
+                end
+                if ST.tgpl == plr then flushTarget() end
+            end)
+        end)
+    end)
+end
+
+hook(ME.CharacterAdded:Connect(function()
+    -- [PERF-3] Wall Check invariant re-enforced here (replaces per-frame call).
+    forceWallCheck()
+    tsp(function()
+        tw(0.3)
+        ST.arm = false; ST.saArm = false; ST.holdReleased = false
+        ST.saToken = (ST.saToken or 0) + 1
+        ST.htArm   = false
+        ST.mobArm  = S.TR.on
+        if holdToAimEnabled then S.AM.on = false end
+        if ST.tgpl ~= nil then flushTarget() end
+        reapplyFPS()
+    end)
+end))
+
+for _, pl in ipairs(Players:GetPlayers()) do oca(pl) end
+
+hook(Players.PlayerAdded:Connect(function(pl)
+    oca(pl)
+    if GUI.igPanel and GUI.igPanel.Visible then
+        ST.igDirtyHash = ""
+        pcall(refreshIgnorePanel, true)
+    end
+end))
+
+-- ============================================================
+-- [FIX-1] PlayerRemoving: clear PART_CACHE_ROOT and PART_CACHE_HEAD
+-- for the departing player's last known character.
+--
+-- Previously, CHARS[pl] was nilled without first reading it to clear
+-- the part caches. This left stale BasePart references in PART_CACHE_ROOT
+-- and PART_CACHE_HEAD indefinitely — a memory leak on high-churn servers.
+-- The CharacterAdded path already does this cleanup correctly; this fix
+-- mirrors that behavior in the PlayerRemoving path.
+--
+-- The lookup is done BEFORE nilling CHARS[pl] so the character reference
+-- is still available. clearLOSCForChar is also called to purge any cached
+-- LOS results for parts belonging to this character, consistent with what
+-- the CharacterAdded cleanup thread already does.
+-- ============================================================
+hook(Players.PlayerRemoving:Connect(function(pl)
+    destroyInstanceESP(pl)
+    LP[pl]=nil; IGNORE[pl]=nil
+    -- [FIX-1] Read last known character before clearing, then clean caches.
+    local lastChar = CHARS[pl]
+    CHARS[pl] = nil
+    if lastChar then
+        PART_CACHE_ROOT[lastChar] = nil
+        PART_CACHE_HEAD[lastChar] = nil
+        HUM_CACHE[lastChar]        = nil  -- [PERF-5]
+        clearLOSCForChar(lastChar)
+    end
+    if CHAR_CONNS[pl] then
+        pcall(function() CHAR_CONNS[pl]:Disconnect() end)
+        CHAR_CONNS[pl] = nil
+    end
+    if ST.tgpl == pl then flushTarget() end
+    if GUI.igPanel and GUI.igPanel.Visible then
+        ST.igDirtyHash = ""
+        pcall(refreshIgnorePanel, true)
+    end
+end))
+
+-- ============================================================
+-- CLEANUP
+-- ============================================================
+function _G.__V94OPSYX_CL()
+    -- Restore the user's original camera zoom on unload.
+    if S.TP.on then
+        S.TP.on = false
+        setThirdPerson(false)
+    elseif TP_STATE.applied then
+        setThirdPerson(false)
+    end
+
+    ST.ld=false; ST.hid=false; ST.stealth=false; ST.kills=0
+    ST.arm=false; ST.saArm=false; ST.holdReleased=false; ST.mobArm=false
+    ST.htArm=false; ST.saToken = (ST.saToken or 0) + 1
+    ST.espNext = 0
+    destroyAllInstanceESP()
+    if FC  then pcall(function() FC:Remove()  end) end
+    if FTL then pcall(function() FTL:Remove() end) end
+    local connsSnapshot = CONNS
+    CONNS = {}
+    for i = 1, #connsSnapshot do
+        pcall(function() connsSnapshot[i]:Disconnect() end)
+    end
+    -- [COMPAT-5] Two-pass CHAR_CONNS cleanup: snapshot keys first, then
+    -- disconnect and nil. Avoids pairs()-mutation instability on Madium V2
+    -- and Fluxus executor Luau forks.
+    local charConnKeys = {}
+    local ck2 = 0
+    for pl in pairs(CHAR_CONNS) do ck2 = ck2 + 1; charConnKeys[ck2] = pl end
+    for i = 1, ck2 do
+        local pl = charConnKeys[i]
+        pcall(function() CHAR_CONNS[pl]:Disconnect() end)
+        CHAR_CONNS[pl] = nil
+    end
+    if ST.ourGuis then
+        for i = 1, #ST.ourGuis do pcall(function() ST.ourGuis[i]:Destroy() end) end
+    end
+    -- [COMPAT-5] Two-pass LP and CHARS cleanup for the same pairs() safety.
+    local lpKeys = {}; local lpN = 0
+    for pl in pairs(LP) do lpN = lpN + 1; lpKeys[lpN] = pl end
+    for i = 1, lpN do LP[lpKeys[i]] = nil end
+
+    local chKeys = {}; local chN = 0
+    for pl in pairs(CHARS) do chN = chN + 1; chKeys[chN] = pl end
+    for i = 1, chN do CHARS[chKeys[i]] = nil end
+
+    for i = 1, SCAN.hwm do SCAN.items[i] = nil end
+    SCAN.n = 0; SCAN.hwm = 0
+    clearPartCache(); flushTarget()
+    _G.__V94OPSYX_LD = nil; _G.__V94OPSYX_CL = nil
+end
+print(string.rep("=",62))
+print("  V9.37-LOWEND OPSYX  |  sUNC 100%  |  NO WEBHOOK")
+print("  All V9.31-V9.36 fixes + V9.37 low-end optimizations.")
+print("  [COMPAT-1]  math.pow->^ (Madium V2/SynX/SW/Krnl/Fluxus)")
+print("  [COMPAT-2]  clearLOSCForChar two-pass (Madium V2, Fluxus)")
+print("  [COMPAT-3]  RAY_FILTER nil-guard respawn (all executors)")
+print("  [COMPAT-4]  isEnemy TeamColor pcall (Madium V2, SynX, SW)")
+print("  [COMPAT-5]  cleanup two-pass loops (Madium V2, Fluxus)")
+print("  [COMPAT-6]  WaitForChild 10s timeout (Madium V2, Krnl, Fluxus)")
+print("  [COMPAT-7]  GetFocusedTextBox pcall (SynX legacy, Krnl, Fluxus)")
+print("  [COMPAT-8]  GetAttribute pcall (SynX legacy, Krnl)")
+print("  [COMPAT-9]  RNG seed 32-bit safe (Krnl/Fluxus 32-bit, Madium V2)")
+print("  [COMPAT-10] Drawing probe removed (Madium V2, Fluxus)")
+print("  [COMPAT-11] flushAimCache dead code removed")
+print("  [COMPAT-12] SetAttribute pcall (SynX legacy, Krnl)")
+print("  [FIX-1]     PlayerRemoving clears PART_CACHE_ROOT/HEAD/LOSC")
+print("  No webhook. No data collection. No outbound networking.")
+print("  F1=Aim | F2=ESP | F3=Silent | F4=Trigger | Wall Check=Always ON")
+print("  F5=KEYS | F7=Hide(FPS shows) | RMB=Arm")
+print("  UNLOAD: _G.__V94OPSYX_CL()")
+print(string.rep("=",62))
