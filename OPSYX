@@ -1,1 +1,289 @@
+--// OPSYX DUAL LOADER
+--// Load 1 / Load 2
 
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Parent = CoreGui
+
+local LOAD_1_URL = "https://raw.githubusercontent.com/projectopsyx-lang/OPSYX/refs/heads/main/OPSYX"
+local LOAD_2_URL = "https://raw.githubusercontent.com/projectopsyx-lang/OPSYX-1/refs/heads/main/OPSYX-1"
+
+-- Remove old loader
+pcall(function()
+    local old = Parent:FindFirstChild("OPSYX_DualLoader")
+    if old then
+        old:Destroy()
+    end
+end)
+
+--// UI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "OPSYX_DualLoader"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = Parent
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.fromOffset(430, 300)
+Main.Position = UDim2.new(0.5, -215, 0.5, -150)
+Main.BackgroundColor3 = Color3.fromRGB(10, 15, 25)
+Main.BorderSizePixel = 0
+Main.Parent = ScreenGui
+
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 16)
+
+local Border = Instance.new("UIStroke")
+Border.Color = Color3.fromRGB(0, 200, 255)
+Border.Thickness = 1.2
+Border.Transparency = 0.35
+Border.Parent = Main
+
+local Gradient = Instance.new("UIGradient")
+Gradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(14, 24, 40)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(7, 11, 19))
+})
+Gradient.Rotation = 90
+Gradient.Parent = Main
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -40, 0, 35)
+Title.Position = UDim2.fromOffset(20, 18)
+Title.BackgroundTransparency = 1
+Title.Text = "OPSYX"
+Title.Font = Enum.Font.GothamBlack
+Title.TextSize = 28
+Title.TextColor3 = Color3.fromRGB(235, 250, 255)
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Main
+
+local Subtitle = Instance.new("TextLabel")
+Subtitle.Size = UDim2.new(1, -40, 0, 22)
+Subtitle.Position = UDim2.fromOffset(20, 52)
+Subtitle.BackgroundTransparency = 1
+Subtitle.Text = "DUAL SCRIPT LOADER"
+Subtitle.Font = Enum.Font.GothamMedium
+Subtitle.TextSize = 12
+Subtitle.TextColor3 = Color3.fromRGB(110, 180, 210)
+Subtitle.TextXAlignment = Enum.TextXAlignment.Left
+Subtitle.Parent = Main
+
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1, -40, 0, 24)
+Status.Position = UDim2.fromOffset(20, 82)
+Status.BackgroundTransparency = 1
+Status.Text = "Select a script to launch"
+Status.Font = Enum.Font.Gotham
+Status.TextSize = 12
+Status.TextColor3 = Color3.fromRGB(150, 165, 180)
+Status.TextXAlignment = Enum.TextXAlignment.Left
+Status.Parent = Main
+
+local function makeButton(text, y, accent)
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(1, -40, 0, 62)
+    Button.Position = UDim2.fromOffset(20, y)
+    Button.BackgroundColor3 = Color3.fromRGB(18, 27, 42)
+    Button.BackgroundTransparency = 0
+    Button.BorderSizePixel = 0
+    Button.AutoButtonColor = false
+    Button.Text = text
+    Button.Font = Enum.Font.GothamBold
+    Button.TextSize = 15
+    Button.TextColor3 = Color3.fromRGB(235, 245, 255)
+    Button.Parent = Main
+
+    Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 12)
+
+    local ButtonStroke = Instance.new("UIStroke")
+    ButtonStroke.Color = accent
+    ButtonStroke.Thickness = 1
+    ButtonStroke.Transparency = 0.45
+    ButtonStroke.Parent = Button
+
+    Button.MouseEnter:Connect(function()
+        TweenService:Create(
+            Button,
+            TweenInfo.new(0.15),
+            {
+                BackgroundColor3 = Color3.fromRGB(25, 40, 60)
+            }
+        ):Play()
+    end)
+
+    Button.MouseLeave:Connect(function()
+        TweenService:Create(
+            Button,
+            TweenInfo.new(0.15),
+            {
+                BackgroundColor3 = Color3.fromRGB(18, 27, 42)
+            }
+        ):Play()
+    end)
+
+    Button.MouseButton1Down:Connect(function()
+        TweenService:Create(
+            Button,
+            TweenInfo.new(0.05),
+            {
+                Size = UDim2.new(1, -44, 0, 58)
+            }
+        ):Play()
+    end)
+
+    Button.MouseButton1Up:Connect(function()
+        TweenService:Create(
+            Button,
+            TweenInfo.new(0.08),
+            {
+                Size = UDim2.new(1, -40, 0, 62)
+            }
+        ):Play()
+    end)
+
+    return Button
+end
+
+local Load1 = makeButton(
+    "LOAD 1   •   OPSYX STABLE",
+    115,
+    Color3.fromRGB(0, 200, 255)
+)
+
+local Load2 = makeButton(
+    "LOAD 2   •   OPSYX FEATURE CENTER",
+    187,
+    Color3.fromRGB(90, 125, 255)
+)
+
+local Footer = Instance.new("TextLabel")
+Footer.Size = UDim2.new(1, -40, 0, 20)
+Footer.Position = UDim2.new(0, 20, 1, -28)
+Footer.BackgroundTransparency = 1
+Footer.Text = "GitHub Raw Loader"
+Footer.Font = Enum.Font.Gotham
+Footer.TextSize = 10
+Footer.TextColor3 = Color3.fromRGB(90, 105, 120)
+Footer.TextXAlignment = Enum.TextXAlignment.Center
+Footer.Parent = Main
+
+--// Loader
+local loading = false
+
+local function loadScript(url, name)
+    if loading then
+        return
+    end
+
+    loading = true
+
+    Load1.Active = false
+    Load2.Active = false
+
+    Status.Text = "Downloading " .. name .. "..."
+    Status.TextColor3 = Color3.fromRGB(110, 200, 230)
+
+    local ok, source = pcall(function()
+        return game:HttpGet(url)
+    end)
+
+    if not ok then
+        Status.Text = "Download failed"
+        Status.TextColor3 = Color3.fromRGB(255, 100, 110)
+
+        warn("[OPSYX] HTTP error: " .. tostring(source))
+
+        Load1.Active = true
+        Load2.Active = true
+        loading = false
+        return
+    end
+
+    if type(source) ~= "string" or #source < 10 then
+        Status.Text = "Invalid script response"
+        Status.TextColor3 = Color3.fromRGB(255, 100, 110)
+
+        Load1.Active = true
+        Load2.Active = true
+        loading = false
+        return
+    end
+
+    Status.Text = "Launching " .. name .. "..."
+    Status.TextColor3 = Color3.fromRGB(100, 230, 170)
+
+    local compiler = loadstring or load
+
+    if type(compiler) ~= "function" then
+        Status.Text = "loadstring is unavailable"
+        Status.TextColor3 = Color3.fromRGB(255, 100, 110)
+
+        Load1.Active = true
+        Load2.Active = true
+        loading = false
+        return
+    end
+
+    local success, fn = pcall(function()
+        return compiler(source)
+    end)
+
+    if not success or type(fn) ~= "function" then
+        Status.Text = "Compilation failed"
+        Status.TextColor3 = Color3.fromRGB(255, 100, 110)
+
+        warn("[OPSYX] Compile error: " .. tostring(fn))
+
+        Load1.Active = true
+        Load2.Active = true
+        loading = false
+        return
+    end
+
+    local runSuccess, runError = pcall(fn)
+
+    if not runSuccess then
+        Status.Text = "Script error"
+        Status.TextColor3 = Color3.fromRGB(255, 100, 110)
+
+        warn("[OPSYX] Runtime error: " .. tostring(runError))
+
+        Load1.Active = true
+        Load2.Active = true
+        loading = false
+        return
+    end
+
+    Status.Text = name .. " loaded"
+    Status.TextColor3 = Color3.fromRGB(100, 240, 170)
+
+    task.wait(0.25)
+
+    pcall(function()
+        ScreenGui:Destroy()
+    end)
+end
+
+Load1.MouseButton1Click:Connect(function()
+    loadScript(LOAD_1_URL, "LOAD 1")
+end)
+
+Load2.MouseButton1Click:Connect(function()
+    loadScript(LOAD_2_URL, "LOAD 2")
+end)
+
+--// Intro animation
+Main.BackgroundTransparency = 1
+Main.Position = UDim2.new(0.5, -215, 0.5, -130)
+
+TweenService:Create(
+    Main,
+    TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+    {
+        BackgroundTransparency = 0,
+        Position = UDim2.new(0.5, -215, 0.5, -150)
+    }
+):Play()
