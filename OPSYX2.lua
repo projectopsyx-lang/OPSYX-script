@@ -49,7 +49,7 @@ local PLATOBOOST_HOSTS = {
     "https://api.platoboost.net",
 }
 
-local RAW_URL = "https://raw.githubusercontent.com/projectopsyx-lang/OPSYX-script/refs/heads/main/OPSYX1"
+local RAW_URL = "https://raw.githubusercontent.com/projectopsyx-lang/OPSYX-script/refs/heads/main/OPSYX1.lua"
 
 local REQUEST_TIMEOUT = 15
 local HOST_TIMEOUT = 7
